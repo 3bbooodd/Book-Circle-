@@ -1,0 +1,285 @@
+import { useState } from "react";
+import { G } from "../styles/globalStyles";
+
+function AdminPage({ showToast, users, setUsers, books, setBooks }) {
+  const [tab, setTab] = useState("users");
+
+  // 👥 USER ACTIONS
+  const approveUser = (id) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === id ? { ...u, status: "Active" } : u
+      )
+    );
+    showToast("User approved!", "success");
+  };
+
+  const rejectUser = (id) => {
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    showToast("User rejected.", "error");
+  };
+
+  // 📚 BOOKS (REAL DATA)
+  const pendingBooks = books.filter(
+    (b) => b.status === "Pending"
+  );
+
+  const approveBook = (id) => {
+    setBooks(prev =>
+      prev.map(b =>
+        b.id === id
+          ? { ...b, status: "Available" }
+          : b
+      )
+    );
+    showToast("Book approved!", "success");
+  };
+
+  const rejectBook = (id) => {
+    setBooks((prev) => prev.filter((b) => b.id !== id));
+    showToast("Book rejected!", "error");
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Admin Dashboard</h1>
+          <p className="page-subtitle">
+            Manage users & book approvals
+          </p>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: "flex", gap: "1.25rem" }}>
+          {[
+            ["👥", "Users", users.length],
+            ["📚", "Books", books.length],
+            ["⏳", "Pending Books", pendingBooks.length],
+          ].map(([icon, label, val]) => (
+            <div
+              key={label}
+              style={{
+                textAlign: "center",
+                background: "white",
+                padding: "0.75rem 1.25rem",
+                borderRadius: 10,
+                border: `1px solid ${G.creamDark}`,
+              }}
+            >
+              <div style={{ fontSize: "1.5rem" }}>
+                {icon}
+              </div>
+              <div
+                style={{
+                  fontFamily: "'Playfair Display',serif",
+                  fontSize: "1.3rem",
+                  fontWeight: 700,
+                  color: G.burgundy,
+                }}
+              >
+                {val}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: G.muted,
+                }}
+              >
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        {["users", "books"].map((t) => (
+          <button
+            key={t}
+            className={`tab-btn ${
+              tab === t ? "active" : ""
+            }`}
+            onClick={() => setTab(t)}
+          >
+            {t === "users"
+              ? "👥 Users"
+              : "📚 Pending Books"}
+          </button>
+        ))}
+      </div>
+
+      {/* USERS TAB */}
+      {tab === "users" && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {/* 🔥 عرض Pending بس */}
+              {users.filter(u => u.status === "Pending").length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: "center", padding: "1rem" }}>
+                    No pending users 
+                  </td>
+                </tr>
+              ) : (
+                users
+                  .filter(u => u.status === "Pending")
+                  .map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.6rem",
+                          }}
+                        >
+                          <div className="comment-avatar">
+                            {u.name[0]}
+                          </div>
+                          {u.name}
+                        </div>
+                      </td>
+
+                      <td style={{ color: G.muted }}>
+                        {u.email}
+                      </td>
+
+                      <td>
+                        <span className="tag">
+                          {u.role}
+                        </span>
+                      </td>
+
+                      <td>{u.joined || "Now"}</td>
+
+                      <td>
+                        <span className="tag tag-warning">
+                          Pending
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="td-actions">
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() =>
+                              approveUser(u.id)
+                            }
+                          >
+                            ✓ Approve
+                          </button>
+
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() =>
+                              rejectUser(u.id)
+                            }
+                          >
+                            ✕ Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* BOOKS TAB */}
+      {tab === "books" && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Owner</th>
+                <th>Genre</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {pendingBooks.length === 0 ? (
+                <tr>
+                  <td colSpan="5">
+                    <div style={{ textAlign: "center", padding: "1rem" }}>
+                      No pending books 
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                pendingBooks.map((b) => (
+                  <tr key={b.id}>
+                    <td
+                      style={{
+                        fontFamily:
+                          "'Playfair Display',serif",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {b.title}
+                    </td>
+
+                    <td>{b.owner}</td>
+
+                    <td>
+                      <span className="tag tag-genre">
+                        {b.genre}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="tag tag-warning">
+                        Pending
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="td-actions">
+                        <button
+                          className="btn btn-sm btn-success"
+                          onClick={() =>
+                            approveBook(b.id)
+                          }
+                        >
+                          ✓ Approve
+                        </button>
+
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() =>
+                            rejectBook(b.id)
+                          }
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AdminPage;
