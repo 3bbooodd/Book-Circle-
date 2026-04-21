@@ -1,0 +1,147 @@
+@BookCircle.Api_HostAddress = https://localhost:7148
+@accessToken = PUT_JWT_HERE
+@refreshToken = PUT_REFRESH_TOKEN_HERE
+@bookId = PUT_BOOK_ID_HERE
+@borrowRequestId = PUT_BORROW_REQUEST_ID_HERE
+@readingListId = PUT_READING_LIST_ID_HERE
+@userId = PUT_USER_ID_HERE
+
+### Register Reader
+POST {{BookCircle.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Reader User",
+  "email": "reader@example.com",
+  "userName": "reader.user",
+  "password": "Reader@123",
+  "confirmPassword": "Reader@123",
+  "role": "Reader"
+}
+
+### Register BookOwner
+POST {{BookCircle.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Owner User",
+  "email": "owner@example.com",
+  "userName": "owner.user",
+  "password": "Owner@123",
+  "confirmPassword": "Owner@123",
+  "role": "BookOwner"
+}
+
+### Login
+POST {{BookCircle.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUserName": "reader@example.com",
+  "password": "Reader@123"
+}
+
+### Refresh Token
+POST {{BookCircle.Api_HostAddress}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Browse Books
+GET {{BookCircle.Api_HostAddress}}/api/books?search=clean&genre=Technology
+Accept: application/json
+
+###
+
+### Create Book
+POST {{BookCircle.Api_HostAddress}}/api/books
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Clean Architecture",
+  "genre": "Technology",
+  "isbn": "9780134494166",
+  "language": "English",
+  "publicationDate": "2017-09-20",
+  "borrowPrice": 30,
+  "availableFrom": "2026-04-21",
+  "availableTo": "2026-05-21",
+  "coverImageUrl": "https://example.com/images/clean-architecture.jpg"
+}
+
+### Moderate User
+PUT {{BookCircle.Api_HostAddress}}/api/admin/users/{{userId}}/approval
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "approve": true
+}
+
+### Moderate Book
+PUT {{BookCircle.Api_HostAddress}}/api/admin/books/{{bookId}}/approval
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "approve": true
+}
+
+### Send Borrow Request
+POST {{BookCircle.Api_HostAddress}}/api/borrow/books/{{bookId}}/requests
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "requestedFrom": "2026-04-22",
+  "requestedTo": "2026-04-29",
+  "message": "I would like to borrow this book next week."
+}
+
+### Process Borrow Request
+PUT {{BookCircle.Api_HostAddress}}/api/borrow/requests/{{borrowRequestId}}/decision
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "approve": true
+}
+
+### Add Comment
+POST {{BookCircle.Api_HostAddress}}/api/books/{{bookId}}/comments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "content": "Excellent book for backend engineers."
+}
+
+### React To Book
+POST {{BookCircle.Api_HostAddress}}/api/books/{{bookId}}/reaction
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "isLike": true
+}
+
+### Create Reading List
+POST {{BookCircle.Api_HostAddress}}/api/readinglists
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Spring Reading"
+}
+
+### Add Book To Reading List
+POST {{BookCircle.Api_HostAddress}}/api/readinglists/{{readingListId}}/books
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "bookId": "{{bookId}}"
+}
