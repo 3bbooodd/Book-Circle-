@@ -20,7 +20,7 @@ public sealed class BorrowController(IBorrowRequestService borrowRequestService)
     }
 
     [HttpGet("my-requests")]
-    [Authorize(Roles = ApplicationRoles.Reader)]
+    [Authorize(Roles = ApplicationRoles.Reader + "," + ApplicationRoles.BookOwner)]
     public async Task<ActionResult<IEnumerable<BorrowRequestResponseDto>>> GetReaderRequests(CancellationToken cancellationToken)
     {
         var result = await borrowRequestService.GetForReaderAsync(User.GetUserId(), cancellationToken);
@@ -40,6 +40,14 @@ public sealed class BorrowController(IBorrowRequestService borrowRequestService)
     public async Task<ActionResult<BorrowRequestResponseDto>> Process(Guid borrowRequestId, ProcessBorrowRequestDto request, CancellationToken cancellationToken)
     {
         var result = await borrowRequestService.ProcessAsync(User.GetUserId(), borrowRequestId, request, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPut("requests/{borrowRequestId:guid}/return")]
+    [Authorize(Roles = ApplicationRoles.BookOwner)]
+    public async Task<ActionResult<BorrowRequestResponseDto>> Return(Guid borrowRequestId, CancellationToken cancellationToken)
+    {
+        var result = await borrowRequestService.ReturnBookAsync(User.GetUserId(), borrowRequestId, cancellationToken);
         return Ok(result);
     }
 }

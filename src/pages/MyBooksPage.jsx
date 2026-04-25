@@ -1,35 +1,33 @@
-import { useState, useEffect } from "react";
-import { BORROW_REQUESTS } from "../services/mockData";
+import { useState } from "react";
 import { G } from "../styles/globalStyles";
+import { useAuth } from "../context/AuthContext";
+import { useMyBooks, useCreateBook, useUpdateBook, useDeleteBook } from "../services/bookService";
+import { useOwnerBorrowRequests, useProcessBorrowRequest, useReturnBook } from "../services/borrowService";
 
-function MyBooksPage({ showToast, books, setBooks, user, onReturnBook }){
-  const myBooks = books.filter((b) => b.owner === user?.name);
-  
+function MyBooksPage(){
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editBook, setEditBook] = useState(null);
   
-  const [requests, setRequests] = useState(() => {
-    return JSON.parse(localStorage.getItem("requests") || "[]");
-  });
-   const ownerRequests = requests.filter(
-  (r) => r.ownerId === user.id
-);
-  
-  // 🔥 حفظ الريكوستات
-  useEffect(() => {
-    localStorage.setItem("requests", JSON.stringify(requests));
-  }, [requests]);
+  // React Query hooks
+  const { data: myBooks = [], isLoading, error } = useMyBooks(user ? { enabled: !!user } : { enabled: false });
+  const { data: requests = [] } = useOwnerBorrowRequests(user ? { enabled: !!user } : { enabled: false });
+  const createBook = useCreateBook();
+  const updateBook = useUpdateBook();
+  const deleteBook = useDeleteBook();
+  const processRequest = useProcessBorrowRequest();
+  const returnBook = useReturnBook();
 
   const [form, setForm] = useState({
     title: "",
     genre: "",
     isbn: "",
     language: "English",
-    pubDate: "",
-    price: "",
-    fromDate: "",
-    toDate: "",
-    image: "",
+    publicationDate: "",
+    borrowPrice: "",
+    availableFrom: "",
+    availableTo: "",
+    coverImageUrl: "",
   });
 
   const openAdd = () => {
@@ -39,11 +37,11 @@ function MyBooksPage({ showToast, books, setBooks, user, onReturnBook }){
       genre: "",
       isbn: "",
       language: "English",
-      pubDate: "",
-      price: "",
-      fromDate: "",
-      toDate: "",
-      image: "",
+      publicationDate: "",
+      borrowPrice: "",
+      availableFrom: "",
+      availableTo: "",
+      coverImageUrl: "",
     });
     setShowForm(true);
   };
@@ -51,94 +49,113 @@ function MyBooksPage({ showToast, books, setBooks, user, onReturnBook }){
   const openEdit = (b) => {
     setEditBook(b);
     setForm({ 
-      ...b, 
-      price: String(b.price), 
-      image: b.image || "",
-      fromDate: b.fromDate || "",
-      toDate: b.toDate || ""
+      title: b.title,
+      genre: b.genre,
+      isbn: b.isbn,
+      language: b.language,
+      publicationDate: b.publicationDate?.split('T')[0] || "",
+      borrowPrice: String(b.borrowPrice),
+      availableFrom: b.availableFrom?.split('T')[0] || "",
+      availableTo: b.availableTo?.split('T')[0] || "",
+      coverImageUrl: b.coverImageUrl || "",
     });
     setShowForm(true);
   };
 
-  // 🔥 دالة الـ SAVE (تجمع بين الـ Create والـ Update)
   const save = () => {
     if (!form.title.trim()) {
-        showToast("Title is required!", "error");
-        return;
+      alert("Title is required!");
+      return;
     }
+
+    const bookData = {
+      ...form,
+      borrowPrice: Number(form.borrowPrice),
+    };
 
     if (editBook) {
-      // --- منطق الـ UPDATE ---
-      setBooks((prev) =>
-        prev.map((b) =>
-          b.id === editBook.id 
-            ? { ...b, ...form, price: Number(form.price) } 
-            : b
-        )
-      );
-      showToast("Book updated successfully! ✨", "success");
+      updateBook.mutate({ bookId: editBook.id, bookData }, {
+        onSuccess: () => {
+          setShowForm(false);
+          setEditBook(null);
+          alert("Book updated successfully!");
+        },
+      });
     } else {
-      // --- منطق الـ CREATE ---
-      const newBook = {
-        ...form,
-        id: crypto.randomUUID(),
-        owner: user?.name || "Unknown",
-        price: Number(form.price),
-         ownerId: user.id,
-        status: "Pending", // يحتاج موافقة أدمن
-        likes: 0,
-        comments: [],
-        createdAt: new Date().toISOString(),
-      };
-      setBooks((prev) => [...prev, newBook]);
-      showToast("Book submitted for review ⏳", "success");
+      createBook.mutate(bookData, {
+        onSuccess: () => {
+          setShowForm(false);
+          setEditBook(null);
+          alert("Book submitted for review!");
+        },
+      });
     }
-
-    setShowForm(false);
-    setEditBook(null);
   };
 
   const del = (id) => {
-    const b = books.find((b) => b.id === id);
+    const b = myBooks.find((b) => b.id === id);
 
     if (b?.status === "Borrowed") {
-      showToast("Cannot delete a borrowed book!", "error");
+      alert("Cannot delete a borrowed book!");
       return;
     }
 
     if (window.confirm("Are you sure you want to remove this book?")) {
-        setBooks((prev) => prev.filter((b) => b.id !== id));
-        showToast("Book removed.");
+      deleteBook.mutate(id, {
+        onSuccess: () => {
+          alert("Book removed.");
+        },
+      });
     }
   };
 
-  // 🔥 ACCEPT REQUEST
   const acceptRequest = (req) => {
-    setBooks((prev) =>
-      prev.map((b) =>
-        b.id === req.bookId ? { ...b, status: "Borrowed" } : b
-      )
-    );
-
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === req.id ? { ...r, status: "Accepted" } : r
-      )
-    );
-
-    showToast("Book borrowed successfully 📕", "success");
+    processRequest.mutate({
+      borrowRequestId: req.id,
+      decisionData: { approve: true },
+    }, {
+      onSuccess: () => {
+        alert("Book borrowed successfully!");
+      },
+    });
   };
 
-  // 🔥 REJECT REQUEST
   const rejectRequest = (req) => {
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === req.id ? { ...r, status: "Rejected" } : r
-      )
-    );
-
-    showToast("Request rejected ❌", "error");
+    processRequest.mutate({
+      borrowRequestId: req.id,
+      decisionData: { approve: false },
+    }, {
+      onSuccess: () => {
+        alert("Request rejected.");
+      },
+    });
   };
+
+  const returnRequest = (req) => {
+    returnBook.mutate(req.id, {
+      onSuccess: () => {
+        alert("Book returned successfully!");
+      },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
+        <div style={{ fontSize: "2rem" }}>Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
+        <div style={{ fontSize: "2rem", color: "#e74c3c" }}>
+          Error: {error.message}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
@@ -154,137 +171,139 @@ function MyBooksPage({ showToast, books, setBooks, user, onReturnBook }){
       </div>
 
       {/* TABLE */}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Genre</th>
-              <th>Language</th>
-              <th>Price/day</th>
-              <th>Status</th>
-              <th>Likes</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {myBooks.map((b) => (
-              <tr key={b.id}>
-                <td style={{ fontFamily: "'Playfair Display'", fontWeight: 600 }}>
-                  {b.title}
-                </td>
-
-                <td>
-                  <span className="tag tag-genre">{b.genre}</span>
-                </td>
-
-                <td>{b.language}</td>
-
-                <td>EGP {b.price}</td>
-
-                <td>
-                  <span
-                    className={`tag ${
-                      b.status === "Available"
-                        ? "status-available"
-                        : b.status === "Borrowed"
-                        ? "status-borrowed"
-                        : "tag-warning"
-                    }`}
-                  >
-                    {b.status}
-                  </span>
-                </td>
-
-                <td>❤️ {b.likes}</td>
-
-                <td>
-                  {/* <div className="td-actions">
-                    <button className="btn btn-ghost btn-sm" onClick={() => openEdit(b)}>
-                      ✏️
-                    </button>
-
-                    <button
-                      className="btn btn-sm"
-                      style={{ background: G.error, color: "white" }}
-                      onClick={() => del(b.id)}
-                    >
-                      🗑
-                    </button>
-                     
-                  </div> */}
-                  <div className="td-actions">
-  <button
-    className="btn btn-ghost btn-sm"
-    onClick={() => openEdit(b)}
-  >
-    ✏️
-  </button>
-
-  <button
-    className="btn btn-sm"
-    style={{ background: G.error, color: "white" }}
-    onClick={() => del(b.id)}
-  >
-    🗑
-  </button>
-
-  {/* 🔥 زرار Return */}
-  {b.status === "Borrowed" && (
-    <button
-      className="btn btn-sm"
-      style={{ background: "#27ae60", color: "white" }}
-      onClick={() => onReturnBook?.(b.id)}
-    >
-      ↩ Return
-    </button>
-  )}
-</div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 🔥 BORROW REQUESTS */}
-      <div style={{ marginTop: "2rem" }}>
-        <h2>Borrow Requests</h2>
+      {myBooks.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📚</div>
+          <h3>You don't have any books</h3>
+          <p>Add your first book to start sharing</p>
+        </div>
+      ) : (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Book</th>
-                <th>User</th>
+                <th>Title</th>
+                <th>Genre</th>
+                <th>Language</th>
+                <th>Price/day</th>
                 <th>Status</th>
-                <th>Action</th>
+                <th>Likes</th>
+                <th>Actions</th>
               </tr>
             </thead>
+
             <tbody>
-              {ownerRequests.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.book}</td>
-                  <td>{r.requester}</td>
-                  <td>{r.status}</td>
+              {myBooks.map((b) => (
+                <tr key={b.id}>
+                  <td style={{ fontFamily: "'Playfair Display'", fontWeight: 600 }}>
+                    {b.title}
+                  </td>
+
                   <td>
-                    {r.status === "Pending" && (
-                      <div style={{ display: "flex", gap: "5px" }}>
-                        <button className="btn btn-sm btn-primary" onClick={() => acceptRequest(r)}>
-                          ✓ Accept
-                        </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => rejectRequest(r)}>
-                          ✕ Reject
-                        </button>
-                      </div>
-                    )}
+                    <span className="tag tag-genre">{b.genre}</span>
+                  </td>
+
+                  <td>{b.language}</td>
+
+                  <td>EGP {b.borrowPrice}</td>
+
+                  <td>
+                    <span
+                      className={`tag ${
+                        b.status === "Available"
+                          ? "status-available"
+                          : b.status === "Borrowed"
+                          ? "status-borrowed"
+                          : "tag-warning"
+                      }`}
+                    >
+                      {b.status}
+                    </span>
+                  </td>
+
+                  <td>❤️ {b.likesCount}</td>
+
+                  <td>
+                    <div className="td-actions">
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => openEdit(b)}
+                      >
+                        ✏️
+                      </button>
+
+                      <button
+                        className="btn btn-sm"
+                        style={{ background: G.error, color: "white" }}
+                        onClick={() => del(b.id)}
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {/* Borrow Requests */}
+      {myBooks.length > 0 && (
+        <div style={{ marginTop: "2rem" }}>
+          <h2>Borrow Requests</h2>
+          {requests.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">�</div>
+              <h3>No borrow requests</h3>
+              <p>Requests will appear here when readers want to borrow your books</p>
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Book</th>
+                    <th>User</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.bookTitle}</td>
+                      <td>{r.readerName}</td>
+                      <td>{r.status}</td>
+                      <td>
+                        {r.status === "Pending" && (
+                          <div style={{gap: "5px" }}>
+                            <button className="btn btn-sm btn-primary" onClick={() => acceptRequest(r)}>
+                              ✓ Accept
+                            </button>
+                            <button className="btn btn-sm btn-danger" onClick={() => rejectRequest(r)}>
+                              ✕ Reject
+                            </button>
+                          </div>
+                        )}
+                        {r.status === "Accepted" && (
+                          <button 
+                            className="btn btn-sm" 
+                            style={{ background: "#27ae60", color: "white" }}
+                            onClick={() => returnRequest(r)}
+                          >
+                            ↩ Return
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MODAL */}
       {showForm && (
@@ -303,16 +322,16 @@ function MyBooksPage({ showToast, books, setBooks, user, onReturnBook }){
                   <label>Available From</label>
                   <input
                     type="date"
-                    value={form.fromDate}
-                    onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
+                    value={form.availableFrom}
+                    onChange={(e) => setForm({ ...form, availableFrom: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
                   <label>Available To</label>
                   <input
                     type="date"
-                    value={form.toDate}
-                    onChange={(e) => setForm({ ...form, toDate: e.target.value })}
+                    value={form.availableTo}
+                    onChange={(e) => setForm({ ...form, availableTo: e.target.value })}
                   />
                 </div>
               </div>
@@ -362,44 +381,37 @@ function MyBooksPage({ showToast, books, setBooks, user, onReturnBook }){
                   <label>Publication Date</label>
                   <input
                     type="date"
-                    value={form.pubDate}
-                    onChange={(e) => setForm({ ...form, pubDate: e.target.value })}
+                    value={form.publicationDate}
+                    onChange={(e) => setForm({ ...form, publicationDate: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
                   <label>Borrow Price (EGP/day)</label>
                   <input
                     type="number"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    value={form.borrowPrice}
+                    onChange={(e) => setForm({ ...form, borrowPrice: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Book Image</label>
+                <label>Book Image URL</label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setForm((prev) => ({ ...prev, image: reader.result }));
-                    };
-                    reader.readAsDataURL(file);
-                  }}
+                  type="text"
+                  placeholder="https://example.com/book-cover.jpg"
+                  value={form.coverImageUrl}
+                  onChange={(e) => setForm({ ...form, coverImageUrl: e.target.value })}
                 />
-                {form.image && (
+                {form.coverImageUrl && (
                   <img
-                    src={form.image}
+                    src={form.coverImageUrl}
                     alt="preview"
                     style={{
                       marginTop: 10,
                       width: "100%",
-                      height: 120,
-                      objectFit: "cover",
+                      height: 150,
+                      objectFit: "contain",
                       borderRadius: 8,
                     }}
                   />

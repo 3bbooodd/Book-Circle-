@@ -1,44 +1,82 @@
 import { useState } from "react";
 import { G } from "../styles/globalStyles";
+import { useAuth } from "../context/AuthContext";
+import { usePendingUsers, useModerateUser } from "../services/adminService";
+import { usePendingBooks, useModerateBook } from "../services/adminService";
 
-function AdminPage({ showToast, users, setUsers, books, setBooks }) {
+function AdminPage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState("users");
 
+  // React Query hooks
+  const { data: pendingUsers = [], isLoading: usersLoading, error: usersError } = usePendingUsers(user ? { enabled: !!user } : { enabled: false });
+  const { data: pendingBooks = [], isLoading: booksLoading, error: booksError } = usePendingBooks(user ? { enabled: !!user } : { enabled: false });
+  const moderateUser = useModerateUser();
+  const moderateBook = useModerateBook();
+
   // 👥 USER ACTIONS
-  const approveUser = (id) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === id ? { ...u, status: "Active" } : u
-      )
+  const approveUser = (userId) => {
+    moderateUser.mutate(
+      { userId, approve: true },
+      {
+        onSuccess: () => {
+          alert("User approved!");
+        },
+      }
     );
-    showToast("User approved!", "success");
   };
 
-  const rejectUser = (id) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    showToast("User rejected.", "error");
-  };
-
-  // 📚 BOOKS (REAL DATA)
-  const pendingBooks = books.filter(
-    (b) => b.status === "Pending"
-  );
-
-  const approveBook = (id) => {
-    setBooks(prev =>
-      prev.map(b =>
-        b.id === id
-          ? { ...b, status: "Available" }
-          : b
-      )
+  const rejectUser = (userId) => {
+    moderateUser.mutate(
+      { userId, approve: false },
+      {
+        onSuccess: () => {
+          alert("User rejected.");
+        },
+      }
     );
-    showToast("Book approved!", "success");
   };
 
-  const rejectBook = (id) => {
-    setBooks((prev) => prev.filter((b) => b.id !== id));
-    showToast("Book rejected!", "error");
+  // 📚 BOOKS ACTIONS
+  const approveBook = (bookId) => {
+    moderateBook.mutate(
+      { bookId, approve: true },
+      {
+        onSuccess: () => {
+          alert("Book approved!");
+        },
+      }
+    );
   };
+
+  const rejectBook = (bookId) => {
+    moderateBook.mutate(
+      { bookId, approve: false },
+      {
+        onSuccess: () => {
+          alert("Book rejected!");
+        },
+      }
+    );
+  };
+
+  if (usersLoading || booksLoading) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
+        <div style={{ fontSize: "2rem" }}>Loading...</div>
+      </div>
+    );
+  }
+
+  if (usersError || booksError) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
+        <div style={{ fontSize: "2rem", color: "#e74c3c" }}>
+          Error: {(usersError || booksError)?.message}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
@@ -53,9 +91,8 @@ function AdminPage({ showToast, users, setUsers, books, setBooks }) {
         {/* Stats */}
         <div style={{ display: "flex", gap: "1.25rem" }}>
           {[
-            ["👥", "Users", users.length],
-            ["📚", "Books", books.length],
-            ["⏳", "Pending Books", pendingBooks.length],
+            ["👥", "Pending Users", pendingUsers.length],
+            ["📚", "Pending Books", pendingBooks.length],
           ].map(([icon, label, val]) => (
             <div
               key={label}
@@ -104,7 +141,7 @@ function AdminPage({ showToast, users, setUsers, books, setBooks }) {
             onClick={() => setTab(t)}
           >
             {t === "users"
-              ? "👥 Users"
+              ? "👥 Pending Users"
               : "📚 Pending Books"}
           </button>
         ))}
@@ -119,81 +156,77 @@ function AdminPage({ showToast, users, setUsers, books, setBooks }) {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
-                <th>Joined</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {/* 🔥 عرض Pending بس */}
-              {users.filter(u => u.status === "Pending").length === 0 ? (
+              {pendingUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center", padding: "1rem" }}>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "1rem" }}>
                     No pending users 
                   </td>
                 </tr>
               ) : (
-                users
-                  .filter(u => u.status === "Pending")
-                  .map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.6rem",
-                          }}
+                pendingUsers.map((u) => (
+                  <tr key={u.id}>
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.6rem",
+                        }}
+                      >
+                        <div className="comment-avatar">
+                          {u.fullName?.[0] || u.userName?.[0] || "?"}
+                        </div>
+                        {u.fullName || u.userName}
+                      </div>
+                    </td>
+
+                    <td style={{ color: G.muted }}>
+                      {u.email}
+                    </td>
+
+                    <td>
+                      <span className="tag">
+                        {u.roles?.join(', ') || 'N/A'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="tag tag-warning">
+                        Pending
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="td-actions">
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: "#27ae60", color: "white" }}
+                          onClick={() =>
+                            approveUser(u.id)
+                          }
                         >
-                          <div className="comment-avatar">
-                            {u.name[0]}
-                          </div>
-                          {u.name}
-                        </div>
-                      </td>
+                          ✓ Approve
+                        </button>
 
-                      <td style={{ color: G.muted }}>
-                        {u.email}
-                      </td>
-
-                      <td>
-                        <span className="tag">
-                          {u.role}
-                        </span>
-                      </td>
-
-                      <td>{u.joined || "Now"}</td>
-
-                      <td>
-                        <span className="tag tag-warning">
-                          Pending
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="td-actions">
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() =>
-                              approveUser(u.id)
-                            }
-                          >
-                            ✓ Approve
-                          </button>
-
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() =>
-                              rejectUser(u.id)
-                            }
-                          >
-                            ✕ Reject
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: "#e74c3c", color: "white" }}
+                          onClick={() =>
+                            rejectUser(u.id)
+                          }
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -236,7 +269,7 @@ function AdminPage({ showToast, users, setUsers, books, setBooks }) {
                       {b.title}
                     </td>
 
-                    <td>{b.owner}</td>
+                    <td>{b.ownerName || b.ownerId}</td>
 
                     <td>
                       <span className="tag tag-genre">
@@ -253,7 +286,8 @@ function AdminPage({ showToast, users, setUsers, books, setBooks }) {
                     <td>
                       <div className="td-actions">
                         <button
-                          className="btn btn-sm btn-success"
+                          className="btn btn-sm"
+                          style={{ background: "green", color: "white" }}
                           onClick={() =>
                             approveBook(b.id)
                           }
@@ -262,7 +296,8 @@ function AdminPage({ showToast, users, setUsers, books, setBooks }) {
                         </button>
 
                         <button
-                          className="btn btn-sm btn-danger"
+                          className="btn btn-sm"
+                          style={{ background: "red", color: "white" }}
                           onClick={() =>
                             rejectBook(b.id)
                           }

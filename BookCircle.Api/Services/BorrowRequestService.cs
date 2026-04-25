@@ -148,6 +148,44 @@ public sealed class BorrowRequestService(
         return MapBorrowRequest(borrowRequest);
     }
 
+    public async Task<BorrowRequestResponseDto> ReturnBookAsync(Guid ownerId, Guid borrowRequestId, CancellationToken cancellationToken = default)
+    {
+        var borrowRequest = await borrowRequestRepository.GetDetailedByIdAsync(borrowRequestId, cancellationToken)
+            ?? throw new NotFoundException("Borrow request was not found.");
+
+        if (borrowRequest.Book.OwnerId != ownerId)
+        {
+            throw new ForbiddenException("You can only return books that you own.");
+        }
+
+        if (borrowRequest.Status != BorrowRequestStatus.Accepted)
+        {
+            throw new BadRequestException("Only accepted borrow requests can be returned.");
+        }
+
+        if (borrowRequest.Book.Status != BookAvailabilityStatus.Borrowed)
+        {
+            throw new BadRequestException("This book is not currently borrowed.");
+        }
+
+        borrowRequest.Status = BorrowRequestStatus.Returned;
+        borrowRequest.Book.Status = BookAvailabilityStatus.Available;
+
+        borrowRequestRepository.Update(borrowRequest);
+        await borrowRequestRepository.SaveChangesAsync(cancellationToken);
+
+        await notificationService.NotifyBorrowDecisionAsync(borrowRequest.ReaderId, new
+        {
+            type = "BorrowRequestUpdated",
+            borrowRequestId = borrowRequest.Id,
+            bookId = borrowRequest.BookId,
+            bookTitle = borrowRequest.Book.Title,
+            status = borrowRequest.Status.ToString()
+        });
+
+        return MapBorrowRequest(borrowRequest);
+    }
+
     public async Task<IEnumerable<BorrowRequestResponseDto>> GetForReaderAsync(Guid readerId, CancellationToken cancellationToken = default)
     {
         var requests = await borrowRequestRepository.GetForReaderAsync(readerId, cancellationToken);

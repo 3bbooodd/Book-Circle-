@@ -5,13 +5,13 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
   const [replyText, setReplyText] = useState("");
   const [activeReplyId, setActiveReplyId] = useState(null);
 
-  // 📝 إضافة كومنت
+  // إضافة كومنت
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!text.trim()) return;
 
-    if (user?.role !== "reader") {
+    if (user?.role !== "Reader") {
       alert("Only readers can comment");
       return;
     }
@@ -26,7 +26,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
   const handleReplySubmit = (parentId) => {
     if (!replyText.trim()) return;
 
-    if (user?.role !== "reader") {
+    if (user?.role !== "Reader") {
       alert("Only readers can reply");
       return;
     }
@@ -45,7 +45,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
       </h4>
 
       {/* 🔥 INPUT (Readers only) */}
-      {user?.role === "reader" ? (
+      {user?.role === "Reader" ? (
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
@@ -108,19 +108,19 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
                   color: "#34495e",
                 }}
               >
-                {c.author}
+                {c.userName}
               </div>
 
               <div style={{ margin: "5px 0", fontSize: "0.95rem" }}>
-                {c.text}
+                {c.content}
               </div>
 
               <div style={{ display: "flex", gap: "15px" }}>
                 <span style={{ fontSize: "0.75rem", color: "#95a5a6" }}>
-                  {c.date || "Just now"}
+                  {c.createdAtUtc ? new Date(c.createdAtUtc).toLocaleDateString() : "Just now"}
                 </span>
 
-                {user?.role === "reader" && (
+                {user?.role === "Reader" && (
                   <button
                     onClick={() =>
                       setActiveReplyId(
@@ -157,11 +157,11 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
                   }}
                 >
                   <div style={{ fontWeight: "bold", fontSize: "0.85rem" }}>
-                    {reply.author}
+                    {reply.userName}
                   </div>
 
                   <div style={{ fontSize: "0.9rem" }}>
-                    {reply.text}
+                    {reply.content}
                   </div>
 
                   <div
@@ -170,7 +170,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
                       color: "#95a5a6",
                     }}
                   >
-                    {reply.date || "Just now"}
+                    {reply.createdAtUtc ? new Date(reply.createdAtUtc).toLocaleDateString() : "Just now"}
                   </div>
                 </div>
               ))}

@@ -18,6 +18,6 @@ public sealed class ReadingListItemConfiguration : IEntityTypeConfiguration<Read
         builder.HasOne(x => x.Book)
             .WithMany(x => x.ReadingListItems)
             .HasForeignKey(x => x.BookId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

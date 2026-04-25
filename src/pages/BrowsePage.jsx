@@ -1,64 +1,143 @@
 import { useState } from "react";
 import BookCard from "../components/BookCard";
 import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
-import CommentsSection from "../components/CommentsSection"; 
+import CommentsSection from "../components/CommentsSection";
+import { useAuth } from "../context/AuthContext";
+import { useBooks, useReactToBook } from "../services/bookService";
+import { useCreateBorrowRequest } from "../services/borrowService";
+import { useBookComments, useCreateComment } from "../services/commentService";
+import { useMyReadingLists, useAddBookToReadingList } from "../services/readingListService";
 
 import { G } from "../styles/globalStyles";
 
-function BrowsePage({
-  books,
-  user,
-  onBorrow,
-  onAddToList,
-  onLike, 
-  onAddComment, 
-  readingList = [],
-}) {
+function BrowsePage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("All");
   const [lang, setLang] = useState("All");
   const [sortBy, setSortBy] = useState("title");
   const [maxPrice, setMaxPrice] = useState("");
   const [selected, setSelected] = useState(null);
+  const [likedBooks, setLikedBooks] = useState(new Set());
 
-  // 🔥 الحل السحري: ابحث عن الكتاب في المصفوفة الأصلية عشان التعليقات تظهر فوراً
+  // React Query hooks
+  const { data: books = [], isLoading, error } = useBooks({ search, genre, language: lang === "All" ? undefined : lang });
+  const reactToBook = useReactToBook();
+  const createBorrowRequest = useCreateBorrowRequest();
+  const { data: comments = [] } = useBookComments(selected?.id);
+  const createComment = useCreateComment();
+  const { data: readingLists = [] } = useMyReadingLists(user?.role === "Reader" ? { enabled: !!user } : { enabled: false });
+  const addBookToList = useAddBookToReadingList();
+
+  // Get current user's reading list
+  const myReadingList = readingLists[0]?.items || [];
+
+  // Find current book in the books array
   const currentBook = books.find((b) => b.id === selected?.id);
 
-  // 🎯 filters
+  // Extract genres and languages
   const genres = ["All", ...new Set(books.map((b) => b.genre))];
   const langs = ["All", ...new Set(books.map((b) => b.language))];
 
   const filtered = books
     .filter(b => {
-      if (user?.role === 'admin') return true;
-      if (user?.role === 'owner' && b.owner === user?.name) return true;
-      return b.status === "Available";
+      if (user?.role === 'Admin') return true;
+      if (user?.role === 'BookOwner' && b.ownerId === user?.id) return true;
+      return true; // Show all books regardless of status
     })
     .filter(b => {
       const q = search.toLowerCase();
       const matchesSearch = (
         b.title.toLowerCase().includes(q) ||
-        b.owner.toLowerCase().includes(q) ||
+        (b.ownerName && b.ownerName.toLowerCase().includes(q)) ||
         b.genre.toLowerCase().includes(q) ||
         b.language.toLowerCase().includes(q) ||
-        String(b.price).includes(q)
+        String(b.borrowPrice).includes(q)
       );
 
       const matchesGenre = genre === "All" || b.genre === genre;
       const matchesLang = lang === "All" || b.language === lang;
-      const matchesPrice = maxPrice === "" || b.price <= Number(maxPrice);
+      const matchesPrice = maxPrice === "" || b.borrowPrice <= Number(maxPrice);
 
       return matchesSearch && matchesGenre && matchesLang && matchesPrice;
     })
     .sort((a, b) => {
-      if (sortBy === "price") return a.price - b.price;
-      if (sortBy === "likes") return (b.likes || 0) - (a.likes || 0);
+      if (sortBy === "price") return a.borrowPrice - b.borrowPrice;
+      if (sortBy === "likes") return (b.likesCount || 0) - (a.likesCount || 0);
       return a.title.localeCompare(b.title);
     });
 
-  // const inList = (id) => readingList.some((r) => r.id === id);
-  const inList = (id) =>
-  (readingList[user?.id] || []).some((b) => b.id === id);
+  const inList = (id) => myReadingList.some((b) => b.bookId === id);
+
+  const scrollToBooks = () => {
+    const section = document.getElementById("books-section");
+    section?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleLike = (bookId) => {
+    const isLiked = likedBooks.has(bookId);
+    reactToBook.mutate(
+      { bookId, reactionData: { type: isLiked ? "unlike" : "like" } },
+      {
+        onSuccess: () => {
+          setLikedBooks((prev) => {
+            const newSet = new Set(prev);
+            if (isLiked) {
+              newSet.delete(bookId);
+            } else {
+              newSet.add(bookId);
+            }
+            return newSet;
+          });
+        },
+      }
+    );
+  };
+
+  const handleBorrow = (book) => {
+    createBorrowRequest.mutate(
+      { bookId: book.id, requestData: {} },
+      {
+        onSuccess: () => {
+          setSelected(null);
+        },
+      }
+    );
+  };
+
+  const handleAddComment = (bookId, text, parentCommentId = null) => {
+    createComment.mutate({
+      bookId,
+      commentData: { text, parentCommentId },
+    });
+  };
+
+  const handleAddToList = (book) => {
+    const readingListId = readingLists[0]?.id;
+    if (!readingListId) return;
+    addBookToList.mutate({
+      readingListId,
+      bookData: { bookId: book.id },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
+        <div style={{ fontSize: "2rem" }}>Loading books...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
+        <div style={{ fontSize: "2rem", color: "#e74c3c" }}>
+          Error loading books: {error.message}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -73,14 +152,14 @@ function BrowsePage({
             BookCircle connects book lovers — lend, borrow, and discover your next great read.
           </p>
           <div className="hero-actions">
-            <button className="btn btn-gold" onClick={() => window.scrollTo({ top: 500, behavior: "smooth" })}>
+            <button onClick={scrollToBooks} className="btn btn-gold">
               Browse Books
             </button>
           </div>
         </div>
       </div>
 
-      <div className="page">
+      <div id="books-section" className="page">
         <div className="page-header">
           <div>
             <h1 className="page-title">Discover Books</h1>
@@ -90,7 +169,6 @@ function BrowsePage({
           </div>
 
           <div className="search-bar">
-           
             <input
               placeholder="Search title, owner…"
               value={search}
@@ -113,8 +191,14 @@ function BrowsePage({
             type="number"
             className="filter-select"
             placeholder="Max Price"
+            min="0"
             value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "" || (Number(value) >= 0)) {
+                setMaxPrice(value);
+              }
+            }}
           />
 
           <select className="filter-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
@@ -138,7 +222,7 @@ function BrowsePage({
                 book={book}
                 user={user}
                 onOpen={setSelected}
-                onLike={onLike} 
+                onLike={handleLike}
               />
             ))}
           </div>
@@ -161,8 +245,8 @@ function BrowsePage({
             <div className="modal-body">
               <div className="book-detail-grid">
                 <div className="book-detail-cover">
-                  {currentBook.image ? (
-                    <img src={currentBook.image} alt={currentBook.title} style={{ width: "100%", borderRadius: 8 }} />
+                  {currentBook.coverImageUrl ? (
+                    <img src={currentBook.coverImageUrl} alt={currentBook.title} style={{ width: "100%", borderRadius: 8 }} />
                   ) : (
                     <BookCoverPlaceholder title={currentBook.title} large />
                   )}
@@ -171,25 +255,21 @@ function BrowsePage({
                 <div className="book-detail-info">
                   <div className="book-detail-title">{currentBook.title}</div>
                   <p><strong>ISBN:</strong> {currentBook.isbn}</p>
-                  <p><strong>Available From:</strong> {currentBook.fromDate} To {currentBook.toDate}</p>
-                  <p><strong>Price:</strong> EGP {currentBook.price}/day</p>
+                  <p><strong>Available From:</strong> {currentBook.availableFrom} To {currentBook.availableTo}</p>
+                  <p><strong>Price:</strong> EGP {currentBook.borrowPrice}/day</p>
                   <p><strong>Genre:</strong> {currentBook.genre} | <strong>Lang:</strong> {currentBook.language}</p>
 
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-                    
-                     {user?.role === "reader" && selected.status === "Available" && (
-                                 <button
-                                   className="btn btn-primary btn-sm"
-                                   onClick={() => {
-                                   onBorrow?.(selected);
-                                  setSelected(null);
-                              }}
-  >
-    📬 Request Borrow
-  </button>
-)}
-                    {user?.role!=="admin" && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => onAddToList?.(currentBook)} disabled={inList(currentBook.id)}>
+                    {user?.role === "Reader" && currentBook.status === "Available" && currentBook.approvalStatus === "Approved" && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleBorrow(currentBook)}
+                      >
+                        📬 Request Borrow
+                      </button>
+                    )}
+                    {user?.role !== "Admin" && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleAddToList(currentBook)} disabled={inList(currentBook.id)}>
                         {inList(currentBook.id) ? "✓ In List" : "📌 Save"}
                       </button>
                     )}
@@ -201,9 +281,9 @@ function BrowsePage({
               <hr style={{ margin: '20px 0', border: '0', borderTop: '1px solid #eee' }} />
               <CommentsSection 
                 bookId={currentBook.id}
-                comments={currentBook.comments || []}
+                comments={comments}
                 user={user}
-                onAddComment={onAddComment}
+                onAddComment={handleAddComment}
               />
             </div>
           </div>
