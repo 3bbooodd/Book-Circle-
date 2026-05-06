@@ -40,4 +40,36 @@ public sealed class AdminController(IAdminService adminService) : ControllerBase
         await adminService.ApproveOrRejectBookAsync(bookId, request.Approve, cancellationToken);
         return NoContent();
     }
+
+    [HttpGet("users")]
+    public async Task<ActionResult<IEnumerable<UserSummaryDto>>> GetAllUsers(
+        [FromQuery] string? role,
+        [FromQuery] string? approvalStatus,
+        [FromQuery] bool? isActive,
+        CancellationToken cancellationToken)
+    {
+        var result = await adminService.GetAllUsersAsync(role, approvalStatus, isActive, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("users/{userId:guid}")]
+    public async Task<ActionResult<UserSummaryDto>> GetUserById(Guid userId, CancellationToken cancellationToken)
+    {
+        var result = await adminService.GetUserByIdAsync(userId, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPut("users/{userId:guid}/active-status")]
+    public async Task<IActionResult> SetUserActiveStatus(Guid userId, SetActiveStatusDto request, CancellationToken cancellationToken)
+    {
+        await adminService.SetUserActiveStatusAsync(userId, request.IsActive, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("users/{userId:guid}/role")]
+    public async Task<IActionResult> ChangeUserRole(Guid userId, ChangeUserRoleDto request, CancellationToken cancellationToken)
+    {
+        await adminService.ChangeUserRoleAsync(userId, request.NewRole, cancellationToken);
+        return NoContent();
+    }
 }

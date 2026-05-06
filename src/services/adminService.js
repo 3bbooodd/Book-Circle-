@@ -7,6 +7,7 @@ import apiClient from './apiClient';
 
 // API Functions
 export const adminApi = {
+  // ── Pending approvals ──────────────────────────────────────
   getPendingUsers: async () => {
     const response = await apiClient.get('/admin/pending-users');
     return response.data;
@@ -24,9 +25,53 @@ export const adminApi = {
   moderateBook: async (bookId, approve) => {
     await apiClient.put(`/admin/books/${bookId}/approval`, { Approve: approve });
   },
+
+  // ── User management (new endpoints) ───────────────────────
+  /**
+   * GET /api/admin/users?role=&approvalStatus=&isActive=
+   * Returns all users, optionally filtered.
+   */
+  getAllUsers: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.role && filters.role !== 'All') params.append('role', filters.role);
+    if (filters.approvalStatus && filters.approvalStatus !== 'All')
+      params.append('approvalStatus', filters.approvalStatus);
+    if (filters.isActive !== undefined && filters.isActive !== 'All')
+      params.append('isActive', filters.isActive);
+
+    const qs = params.toString();
+    const url = qs ? `/admin/users?${qs}` : '/admin/users';
+    const response = await apiClient.get(url);
+    return response.data;
+  },
+
+  /**
+   * GET /api/admin/users/{userId}
+   */
+  getUserById: async (userId) => {
+    const response = await apiClient.get(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  /**
+   * PUT /api/admin/users/{userId}/active-status
+   * Body: { IsActive: bool }
+   */
+  setUserActiveStatus: async (userId, isActive) => {
+    await apiClient.put(`/admin/users/${userId}/active-status`, { IsActive: isActive });
+  },
+
+  /**
+   * PUT /api/admin/users/{userId}/role
+   * Body: { NewRole: string }
+   */
+  changeUserRole: async (userId, newRole) => {
+    await apiClient.put(`/admin/users/${userId}/role`, { NewRole: newRole });
+  },
 };
 
-// React Query Hooks
+// ── React Query Hooks ──────────────────────────────────────────
+
 export const usePendingUsers = (options = {}) => {
   return useQuery({
     queryKey: ['admin', 'pendingUsers'],
@@ -43,24 +88,66 @@ export const usePendingBooks = (options = {}) => {
   });
 };
 
+export const useAllUsers = (filters = {}, options = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'allUsers', filters],
+    queryFn: () => adminApi.getAllUsers(filters),
+    ...options,
+  });
+};
+
+export const useUserById = (userId, options = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'user', userId],
+    queryFn: () => adminApi.getUserById(userId),
+    enabled: !!userId,
+    ...options,
+  });
+};
+
 export const useModerateUser = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ userId, approve }) => adminApi.moderateUser(userId, approve),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'pendingUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
     },
   });
 };
 
 export const useModerateBook = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ bookId, approve }) => adminApi.moderateBook(bookId, approve),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'pendingBooks'] });
+      queryClient.invalidateQueries({ queryKey: ['books'] });
+    },
+  });
+};
+
+export const useSetUserActiveStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, isActive }) => adminApi.setUserActiveStatus(userId, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'pendingUsers'] });
+    },
+  });
+};
+
+export const useChangeUserRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, newRole }) => adminApi.changeUserRole(userId, newRole),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
     },
   });
 };

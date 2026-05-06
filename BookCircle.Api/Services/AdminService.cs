@@ -40,7 +40,8 @@ public sealed class AdminService(
                 Email = user.Email ?? string.Empty,
                 UserName = user.UserName ?? string.Empty,
                 Roles = roles,
-                ApprovalStatus = user.ApprovalStatus
+                ApprovalStatus = user.ApprovalStatus,
+                IsActive = user.IsActive
             });
         }
 
@@ -81,6 +82,126 @@ public sealed class AdminService(
         book.ApprovalStatus = approve ? BookApprovalStatus.Approved : BookApprovalStatus.Rejected;
         bookRepository.Update(book);
         await bookRepository.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<UserSummaryDto>> GetAllUsersAsync(string? role, string? approvalStatus, bool? isActive, CancellationToken cancellationToken = default)
+    {
+        var query = userManager.Users.AsQueryable();
+
+        if (!string.IsNullOrEmpty(role))
+        {
+            var usersInRole = await userManager.GetUsersInRoleAsync(role);
+            var userIdsInRole = usersInRole.Select(u => u.Id).ToHashSet();
+            query = query.Where(x => userIdsInRole.Contains(x.Id));
+        }
+
+        if (!string.IsNullOrEmpty(approvalStatus) && Enum.TryParse<UserApprovalStatus>(approvalStatus, true, out var parsedStatus))
+        {
+            query = query.Where(x => x.ApprovalStatus == parsedStatus);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        var users = await query.OrderByDescending(x => x.CreatedAtUtc).ToListAsync(cancellationToken);
+
+        var summaries = new List<UserSummaryDto>();
+
+        foreach (var user in users)
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            if (roles.Contains(ApplicationRoles.Admin))
+            {
+                continue;
+            }
+
+            summaries.Add(new UserSummaryDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email ?? string.Empty,
+                UserName = user.UserName ?? string.Empty,
+                Roles = roles,
+                ApprovalStatus = user.ApprovalStatus,
+                IsActive = user.IsActive
+            });
+        }
+
+        return summaries;
+    }
+
+    public async Task<UserSummaryDto> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException("User was not found.");
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Contains(ApplicationRoles.Admin))
+        {
+            throw new BadRequestException("Admin accounts cannot be viewed from this endpoint.");
+        }
+
+        return new UserSummaryDto
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
+            UserName = user.UserName ?? string.Empty,
+            Roles = roles,
+            ApprovalStatus = user.ApprovalStatus,
+            IsActive = user.IsActive
+        };
+    }
+
+    public async Task SetUserActiveStatusAsync(Guid userId, bool isActive, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException("User was not found.");
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Contains(ApplicationRoles.Admin))
+        {
+            throw new BadRequestException("Admin accounts cannot be disabled.");
+        }
+
+        user.IsActive = isActive;
+
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new BadRequestException(string.Join("; ", result.Errors.Select(x => x.Description)));
+        }
+    }
+
+    public async Task ChangeUserRoleAsync(Guid userId, string newRole, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException("User was not found.");
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Contains(ApplicationRoles.Admin))
+        {
+            throw new BadRequestException("Admin accounts cannot have their roles changed.");
+        }
+
+        if (!ApplicationRoles.RegistrableRoles.Contains(newRole))
+        {
+            throw new BadRequestException($"Role '{newRole}' is not a valid registrable role.");
+        }
+
+        var removeResult = await userManager.RemoveFromRolesAsync(user, roles);
+        if (!removeResult.Succeeded)
+        {
+            throw new BadRequestException(string.Join("; ", removeResult.Errors.Select(x => x.Description)));
+        }
+
+        var addResult = await userManager.AddToRoleAsync(user, newRole);
+        if (!addResult.Succeeded)
+        {
+            throw new BadRequestException(string.Join("; ", addResult.Errors.Select(x => x.Description)));
+        }
     }
 
     private static BookResponseDto MapBook(Book book)

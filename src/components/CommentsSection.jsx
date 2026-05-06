@@ -11,8 +11,8 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
 
     if (!text.trim()) return;
 
-    if (user?.role !== "Reader") {
-      alert("Only readers can comment");
+    if (!user) {
+      alert("You must be logged in to comment.");
       return;
     }
 
@@ -26,8 +26,8 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
   const handleReplySubmit = (parentId) => {
     if (!replyText.trim()) return;
 
-    if (user?.role !== "Reader") {
-      alert("Only readers can reply");
+    if (!user) {
+      alert("You must be logged in to reply.");
       return;
     }
 
@@ -45,7 +45,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
       </h4>
 
       {/* 🔥 INPUT (Readers only) */}
-      {user?.role === "Reader" ? (
+      {user ? (
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
@@ -80,7 +80,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
             marginBottom: "20px",
           }}
         >
-          Only readers can leave comments.
+          Log in to leave a comment.
         </p>
       )}
 
@@ -120,7 +120,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
                   {c.createdAtUtc ? new Date(c.createdAtUtc).toLocaleDateString() : "Just now"}
                 </span>
 
-                {user?.role === "Reader" && (
+                {user && (
                   <button
                     onClick={() =>
                       setActiveReplyId(

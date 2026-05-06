@@ -15,13 +15,14 @@ export const register = async (userData) => {
   const { accessToken, refreshToken, user } = response.data;
   setTokens(accessToken, refreshToken);
   // Convert Roles array to single role string and add status
+  // Backend uses JsonStringEnumConverter → approvalStatus is a string ("Pending", "Active", etc.)
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     userName: user.userName,
     role: user.roles?.[0] || 'Reader',
-    status: user.approvalStatus === 0 ? 'Pending' : 'Active',
+    status: user.approvalStatus === 'Pending' ? 'Pending' : 'Active',
     accessToken,
     refreshToken
   };
@@ -37,13 +38,14 @@ export const login = async (credentials) => {
   const { accessToken, refreshToken, user } = response.data;
   setTokens(accessToken, refreshToken);
   // Convert Roles array to single role string and add status
+  // Backend uses JsonStringEnumConverter → approvalStatus is a string ("Pending", "Active", etc.)
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     userName: user.userName,
     role: user.roles?.[0] || 'Reader',
-    status: user.approvalStatus === 0 ? 'Pending' : 'Active',
+    status: user.approvalStatus === 'Pending' ? 'Pending' : 'Active',
     accessToken,
     refreshToken
   };
