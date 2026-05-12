@@ -19,10 +19,14 @@ public sealed class BookRepository(ApplicationDbContext context) : GenericReposi
 
     public async Task<List<Book>> GetBrowseableBooksAsync(string? search, string? genre, string? language, CancellationToken cancellationToken = default)
     {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        
         var query = Context.Books
             .Include(x => x.Owner)
             .Include(x => x.Reactions)
             .Where(x => x.ApprovalStatus == BookApprovalStatus.Approved)
+            .Where(x => !x.AvailableFrom.HasValue || x.AvailableFrom <= today)
+            .Where(x => !x.AvailableTo.HasValue || x.AvailableTo >= today)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -64,6 +68,15 @@ public sealed class BookRepository(ApplicationDbContext context) : GenericReposi
             .Include(x => x.Owner)
             .Include(x => x.Reactions)
             .Where(x => x.ApprovalStatus == BookApprovalStatus.Pending)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Book>> GetAllBooksAsync(CancellationToken cancellationToken = default)
+    {
+        return await Context.Books
+            .Include(x => x.Owner)
+            .Include(x => x.Reactions)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync(cancellationToken);
     }

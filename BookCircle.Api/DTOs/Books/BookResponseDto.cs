@@ -20,4 +20,5 @@ public sealed class BookResponseDto
     public BookApprovalStatus ApprovalStatus { get; set; }
     public int LikesCount { get; set; }
     public int DislikesCount { get; set; }
+    public string? UserReaction { get; set; } // "Like", "Dislike", or null
 }

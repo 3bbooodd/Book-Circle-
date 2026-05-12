@@ -48,11 +48,25 @@ export const globalStyles = `
   --muted: ${G.muted};
 }
 
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
   background: var(--cream);
   color: var(--ink);
-  min-height: 100vh;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* scrollbar */
@@ -95,6 +109,7 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
     border-radius: 6px;
     transition: all 0.2s;
     white-space: nowrap;
+    text-decoration: none;
   }
   .nav-btn:hover, .nav-btn.active {
     background: rgba(201,168,76,0.18);
@@ -148,11 +163,15 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
   }
   .btn-ghost:hover { background: var(--cream-dark); }
   .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
-  .btn-danger { background: var(--error); color: white; }
+  .btn-danger { background: red; color: white; margin:10px; }
   .btn-success { background: var(--success); color: white; }
 
   /* ── Page Layout ── */
-  .page { padding: 2rem 2.5rem; max-width: 1400px; margin: 0 auto; }
+  .page { 
+    padding: 1rem 2.5rem; 
+    width: 100%;
+    flex: 1;
+  }
   .page-header {
     margin-bottom: 2.5rem;
     padding-bottom: 1.5rem;
@@ -397,7 +416,7 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
   table { width: 100%; border-collapse: collapse; background: white; }
   thead tr { background: var(--burgundy-dark); }
   thead th {
-    padding: 0.85rem 1.1rem; text-align: left;
+    padding: 0.85rem 1.1rem;
     font-family: 'DM Sans', sans-serif; font-size: 0.8rem;
     font-weight: 600; color: rgba(255,255,255,0.85);
     letter-spacing: 0.04em; text-transform: uppercase;
@@ -405,8 +424,8 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
   tbody tr { border-bottom: 1px solid var(--cream-dark); transition: background 0.15s; }
   tbody tr:last-child { border-bottom: none; }
   tbody tr:hover { background: var(--cream); }
-  td { padding: 0.85rem 1.1rem; font-size: 0.875rem; color: var(--ink-mid); }
-  .td-actions { display: flex; gap: 0.5rem; color: rgba(14, 13, 13, 0.85);}
+  td { padding: 0.85rem 1.1rem; font-size: 0.875rem; color: var(--ink-mid); vertical-align: middle; }
+  .td-actions { display: flex; gap: 0.5rem; color: rgba(14, 13, 13, 0.85); align-items: center; justify-content: center;}
 
   /* ── Reading List ── */
   .reading-list-item {
@@ -436,17 +455,24 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
 
   /* ── Hero ── */
   .hero {
-    background: linear-gradient(135deg, var(--burgundy-dark) 0%, var(--burgundy) 60%, var(--burgundy-light) 100%);
-    padding: 3.5rem 2.5rem;
-    margin-bottom: 0;
-    position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--burgundy-dark) 0%, var(--burgundy) 60%, var(--burgundy-light) 100%);
+  
+  min-height: calc(100vh - 62px); /* 👈 full screen minus navbar */
+  
+  display: flex;
+  align-items: center;
+
+  padding: 3.5rem 2.5rem;
+  
+  position: relative;
+  overflow: hidden;
   }
   .hero::before {
     content: '';
     position: absolute; inset: 0;
     background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
-  .hero-content { position: relative; max-width: 680px; }
+  .hero-content { position: relative; width: 100%; margin-top: 0;}
   .hero-title {
     font-family: 'Playfair Display', serif;
     font-size: 3rem; font-weight: 700; color: white;
@@ -490,7 +516,7 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
     display: flex; align-items: center; gap: 0.6rem;
     max-width: 320px;
   }
-  .toast.success { background: var(--success); }
+  .toast.success { background: #27ae60; }
   .toast.error { background: var(--error); }
 
   /* ── Empty state ── */

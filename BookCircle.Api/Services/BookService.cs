@@ -15,13 +15,13 @@ public sealed class BookService(
     IGenericRepository<BookReaction> reactionRepository,
     UserManager<ApplicationUser> userManager) : IBookService
 {
-    public async Task<IEnumerable<BookResponseDto>> BrowseAsync(string? search, string? genre, string? language, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<BookResponseDto>> BrowseAsync(Guid? currentUserId, string? search, string? genre, string? language, CancellationToken cancellationToken = default)
     {
         var books = await bookRepository.GetBrowseableBooksAsync(search, genre, language, cancellationToken);
-        return books.Select(MapBook);
+        return books.Select(b => MapBook(b, currentUserId));
     }
 
-    public async Task<BookResponseDto> GetByIdAsync(Guid bookId, CancellationToken cancellationToken = default)
+    public async Task<BookResponseDto> GetByIdAsync(Guid? currentUserId, Guid bookId, CancellationToken cancellationToken = default)
     {
         var book = await bookRepository.GetDetailedByIdAsync(bookId, cancellationToken)
             ?? throw new NotFoundException("Book was not found.");
@@ -31,13 +31,13 @@ public sealed class BookService(
             throw new ForbiddenException("This book is not publicly available.");
         }
 
-        return MapBook(book);
+        return MapBook(book, currentUserId);
     }
 
     public async Task<IEnumerable<BookResponseDto>> GetOwnerBooksAsync(Guid ownerId, CancellationToken cancellationToken = default)
     {
         var books = await bookRepository.GetOwnerBooksAsync(ownerId, cancellationToken);
-        return books.Select(MapBook);
+        return books.Select(b => MapBook(b, ownerId));
     }
 
     public async Task<BookResponseDto> CreateAsync(Guid ownerId, BookCreateRequestDto request, CancellationToken cancellationToken = default)
@@ -67,7 +67,7 @@ public sealed class BookService(
         var createdBook = await bookRepository.GetDetailedByIdAsync(book.Id, cancellationToken)
             ?? throw new NotFoundException("Created book could not be loaded.");
 
-        return MapBook(createdBook);
+        return MapBook(createdBook, ownerId);
     }
 
     public async Task<BookResponseDto> UpdateAsync(Guid ownerId, Guid bookId, BookUpdateRequestDto request, CancellationToken cancellationToken = default)
@@ -96,7 +96,7 @@ public sealed class BookService(
         bookRepository.Update(book);
         await bookRepository.SaveChangesAsync(cancellationToken);
 
-        return MapBook(book);
+        return MapBook(book, ownerId);
     }
 
     public async Task DeleteAsync(Guid ownerId, Guid bookId, CancellationToken cancellationToken = default)
@@ -140,6 +140,11 @@ public sealed class BookService(
 
             await reactionRepository.AddAsync(existingReaction, cancellationToken);
         }
+        else if (existingReaction.IsLike == request.IsLike)
+        {
+            // If user sends the same reaction, remove it (toggle)
+            reactionRepository.Remove(existingReaction);
+        }
         else
         {
             existingReaction.IsLike = request.IsLike;
@@ -151,7 +156,7 @@ public sealed class BookService(
         var updatedBook = await bookRepository.GetDetailedByIdAsync(bookId, cancellationToken)
             ?? throw new NotFoundException("Book was not found after updating reaction.");
 
-        return MapBook(updatedBook);
+        return MapBook(updatedBook, userId);
     }
 
     private async Task EnsureOwnerApprovedAsync(Guid ownerId)
@@ -173,8 +178,12 @@ public sealed class BookService(
         }
     }
 
-    private static BookResponseDto MapBook(Book book)
+    private static BookResponseDto MapBook(Book book, Guid? currentUserId = null)
     {
+        var reaction = currentUserId.HasValue 
+            ? book.Reactions.FirstOrDefault(x => x.UserId == currentUserId.Value)
+            : null;
+
         return new BookResponseDto
         {
             Id = book.Id,
@@ -192,7 +201,8 @@ public sealed class BookService(
             OwnerName = book.Owner.FullName,
             ApprovalStatus = book.ApprovalStatus,
             LikesCount = book.Reactions.Count(x => x.IsLike),
-            DislikesCount = book.Reactions.Count(x => !x.IsLike)
+            DislikesCount = book.Reactions.Count(x => !x.IsLike),
+            UserReaction = reaction?.IsLike == true ? "Like" : (reaction?.IsLike == false ? "Dislike" : null)
         };
     }
 }

@@ -10,4 +10,5 @@ public sealed class UserSummaryDto
     public string UserName { get; set; } = string.Empty;
     public IEnumerable<string> Roles { get; set; } = [];
     public UserApprovalStatus ApprovalStatus { get; set; }
+    public bool IsActive { get; set; }
 }

@@ -19,7 +19,8 @@ public sealed class BooksController(IBookService bookService) : ControllerBase
         [FromQuery] string? language,
         CancellationToken cancellationToken)
     {
-        var result = await bookService.BrowseAsync(search, genre, language, cancellationToken);
+        Guid? userId = User.Identity?.IsAuthenticated == true ? User.GetUserId() : null;
+        var result = await bookService.BrowseAsync(userId, search, genre, language, cancellationToken);
         return Ok(result);
     }
 
@@ -27,7 +28,8 @@ public sealed class BooksController(IBookService bookService) : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<BookResponseDto>> GetById(Guid bookId, CancellationToken cancellationToken)
     {
-        var result = await bookService.GetByIdAsync(bookId, cancellationToken);
+        Guid? userId = User.Identity?.IsAuthenticated == true ? User.GetUserId() : null;
+        var result = await bookService.GetByIdAsync(userId, bookId, cancellationToken);
         return Ok(result);
     }
 
@@ -64,7 +66,7 @@ public sealed class BooksController(IBookService bookService) : ControllerBase
     }
 
     [HttpPost("{bookId:guid}/reaction")]
-    [Authorize(Roles = ApplicationRoles.Reader)]
+    [Authorize(Roles = $"{ApplicationRoles.Reader},{ApplicationRoles.BookOwner}")]
     public async Task<ActionResult<BookResponseDto>> React(Guid bookId, BookReactionRequestDto request, CancellationToken cancellationToken)
     {
         var result = await bookService.ReactAsync(User.GetUserId(), bookId, request, cancellationToken);

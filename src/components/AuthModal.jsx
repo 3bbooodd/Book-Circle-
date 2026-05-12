@@ -1,92 +1,77 @@
 import { useState } from "react";
 import { G } from "../styles/globalStyles";
+import { login, register } from "../services/authService";
 
 function AuthModal({ onClose, onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState("Reader");
-  const [name, setName] = useState("");
+  const [role, setRole] = useState("BookOwner");
+  const [fullName, setFullName] = useState("");
+  const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const submit = () => {
-    const roles = {
-      Admin: "admin",
-      "Book Owner": "owner",
-      Reader: "reader",
-    };
+  const submit = async () => {
+    setError("");
+    setLoading(true);
 
-    const allUsers = JSON.parse(localStorage.getItem("users") || "[]");
-
-    // 🔍 نلاقي user بنفس الإيميل + role
-    const existingUser = allUsers.find(
-      (u) => u.email === email && u.role === roles[role]
-    );
-
-    // =========================
-    // 🧠 LOGIN
-    // =========================
-    if (isLogin) {
-      if (!existingUser) {
-        alert("User not found ❌");
+    try {
+      // =========================
+      // 🧠 LOGIN
+      // =========================
+      if (isLogin) {
+        const result = await login({ emailOrUserName: email, password });
+        onLogin(result);
+        onClose();
         return;
       }
 
-      // 🔥 منع الدخول لو Pending
-      if (existingUser.status === "Pending") {
-        alert("Your account is under review ⏳");
+      // =========================
+      // 📝 REGISTER
+      // =========================
+
+      // Validation
+      if (!fullName || !userName || !email || !password || !confirmPassword) {
+        setError("Please fill in all fields ❌");
+        setLoading(false);
         return;
       }
 
-      // 🔐 check password
-      if (existingUser.password !== password) {
-        alert("Wrong password ❌");
+      if (password !== confirmPassword) {
+        setError("Passwords do not match ❌");
+        setLoading(false);
         return;
       }
 
-      onLogin(existingUser);
-      onClose();
-      return;
+      const result = await register({
+        fullName,
+        email,
+        userName,
+        password,
+        confirmPassword,
+        role,
+      });
+
+      // BookOwner requires admin approval - don't auto-login
+      if (role === "BookOwner") {
+        setError("Account created! Please wait for admin approval before logging in ⏳");
+        setTimeout(() => {
+          onClose();
+          setIsLogin(true); // Switch to login tab
+        }, 2500);
+      } else if (result.status === "Pending") {
+        setError("Account created. Waiting for admin approval ⏳");
+      } else {
+        onLogin(result);
+        onClose();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Authentication failed ❌");
+    } finally {
+      setLoading(false);
     }
-
-    // =========================
-    // 📝 REGISTER
-    // =========================
-
-    // ❌ منع duplicate email
-    const emailExists = allUsers.some((u) => u.email === email);
-    if (emailExists) {
-      alert("Email already exists ❌");
-      return;
-    }
-
-    const newUser = {
-      id: crypto.randomUUID(),
-      name: name || email.split("@")[0],
-      email,
-      password,
-      role: roles[role],
-      status: role === "Book Owner" ? "Pending" : "Active", // 🔥 المهم
-      joined: "Now",
-    };
-
-    // 🔥 نحفظه في localStorage
-    localStorage.setItem(
-      "users",
-      JSON.stringify([...allUsers, newUser])
-    );
-
-    alert(
-      newUser.status === "Pending"
-        ? "Account created. Waiting for admin approval ⏳"
-        : "Account created successfully ✅"
-    );
-
-    // 🔥 لو مش Pending دخّله
-    if (newUser.status === "Active") {
-      onLogin(newUser);
-    }
-
-    onClose();
   };
 
   return (
@@ -107,15 +92,28 @@ function AuthModal({ onClose, onLogin }) {
         </div>
 
         <div className="modal-body">
-          {/* Name */}
+          {/* Full Name */}
           {!isLogin && (
             <div className="form-group">
               <label className="form-label">Full Name</label>
               <input
                 className="form-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Your full name"
+              />
+            </div>
+          )}
+
+          {/* Username */}
+          {!isLogin && (
+            <div className="form-group">
+              <label className="form-label">Username</label>
+              <input
+                className="form-input"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Choose a username"
               />
             </div>
           )}
@@ -144,21 +142,34 @@ function AuthModal({ onClose, onLogin }) {
             />
           </div>
 
-          {/* Role (Register) */}
+          {/* Confirm Password */}
           {!isLogin && (
             <div className="form-group">
-              <label className="form-label">I am a…</label>
+              <label className="form-label">Confirm Password</label>
+              <input
+                className="form-input"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+          )}
 
+          {/* Role (Register only) */}
+          {!isLogin && (
+            <div className="form-group">
+              <label className="form-label">Role</label>
               <select
                 className="form-select"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
-                <option>Reader</option>
-                <option>Book Owner</option>
+                <option value="Reader">Reader</option>
+                <option value="BookOwner">Book Owner</option>
               </select>
 
-              {role === "Book Owner" && (
+              {role === "BookOwner" && (
                 <p
                   style={{
                     fontSize: "0.78rem",
@@ -173,20 +184,19 @@ function AuthModal({ onClose, onLogin }) {
             </div>
           )}
 
-          {/* Role (Login switch) */}
-          {isLogin && (
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-              {["Admin", "Book Owner", "Reader"].map((label) => (
-                <button
-                  key={label}
-                  className={`btn btn-sm ${
-                    role === label ? "btn-primary" : "btn-ghost"
-                  }`}
-                  onClick={() => setRole(label)}
-                >
-                  {label}
-                </button>
-              ))}
+          {/* Error Message */}
+          {error && (
+            <div
+              style={{
+                fontSize: "0.85rem",
+                color: "#e74c3c",
+                padding: "0.5rem",
+                backgroundColor: "#fde8e8",
+                borderRadius: "4px",
+                marginTop: "0.5rem",
+              }}
+            >
+              {error}
             </div>
           )}
         </div>
@@ -199,8 +209,9 @@ function AuthModal({ onClose, onLogin }) {
             className="btn btn-primary"
             style={{ width: "100%" }}
             onClick={submit}
+            disabled={loading}
           >
-            {isLogin ? "Log In" : "Create Account"}
+            {loading ? "Processing..." : (isLogin ? "Log In" : "Create Account")}
           </button>
 
           <button
