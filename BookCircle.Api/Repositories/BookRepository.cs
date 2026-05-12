@@ -71,4 +71,13 @@ public sealed class BookRepository(ApplicationDbContext context) : GenericReposi
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<Book>> GetAllBooksAsync(CancellationToken cancellationToken = default)
+    {
+        return await Context.Books
+            .Include(x => x.Owner)
+            .Include(x => x.Reactions)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
 }

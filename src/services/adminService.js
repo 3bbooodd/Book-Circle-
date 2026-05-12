@@ -26,6 +26,11 @@ export const adminApi = {
     await apiClient.put(`/admin/books/${bookId}/approval`, { Approve: approve });
   },
 
+  getAllBooks: async () => {
+    const response = await apiClient.get('/admin/books');
+    return response.data;
+  },
+
   // ── User management (new endpoints) ───────────────────────
   /**
    * GET /api/admin/users?role=&approvalStatus=&isActive=
@@ -88,6 +93,14 @@ export const usePendingBooks = (options = {}) => {
   });
 };
 
+export const useAllBooks = (options = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'allBooks'],
+    queryFn: () => adminApi.getAllBooks(),
+    ...options,
+  });
+};
+
 export const useAllUsers = (filters = {}, options = {}) => {
   return useQuery({
     queryKey: ['admin', 'allUsers', filters],
@@ -124,6 +137,7 @@ export const useModerateBook = () => {
     mutationFn: ({ bookId, approve }) => adminApi.moderateBook(bookId, approve),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'pendingBooks'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allBooks'] });
       queryClient.invalidateQueries({ queryKey: ['books'] });
     },
   });

@@ -8,6 +8,7 @@ function MyBooksPage(){
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editBook, setEditBook] = useState(null);
+  const [previewError, setPreviewError] = useState(false);
   
   // React Query hooks
   const { data: myBooks = [], isLoading, error } = useMyBooks(user ? { enabled: !!user } : { enabled: false });
@@ -43,6 +44,7 @@ function MyBooksPage(){
       availableTo: "",
       coverImageUrl: "",
     });
+    setPreviewError(false);
     setShowForm(true);
   };
 
@@ -59,6 +61,7 @@ function MyBooksPage(){
       availableTo: b.availableTo?.split('T')[0] || "",
       coverImageUrl: b.coverImageUrl || "",
     });
+    setPreviewError(false);
     setShowForm(true);
   };
 
@@ -401,12 +404,16 @@ function MyBooksPage(){
                   type="text"
                   placeholder="https://example.com/book-cover.jpg"
                   value={form.coverImageUrl}
-                  onChange={(e) => setForm({ ...form, coverImageUrl: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, coverImageUrl: e.target.value });
+                    setPreviewError(false);
+                  }}
                 />
-                {form.coverImageUrl && (
+                {form.coverImageUrl && !previewError && (
                   <img
                     src={form.coverImageUrl}
                     alt="preview"
+                    onError={() => setPreviewError(true)}
                     style={{
                       marginTop: 10,
                       width: "100%",
@@ -415,6 +422,11 @@ function MyBooksPage(){
                       borderRadius: 8,
                     }}
                   />
+                )}
+                {form.coverImageUrl && previewError && (
+                  <div style={{ marginTop: 10, padding: '10px', background: '#f8d7da', color: '#721c24', borderRadius: 8, fontSize: '0.8rem' }}>
+                    ⚠️ Invalid or unreachable image URL
+                  </div>
                 )}
               </div>
             </div>

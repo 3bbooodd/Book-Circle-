@@ -6,6 +6,7 @@ import {
   useModerateUser,
   usePendingBooks,
   useModerateBook,
+  useAllBooks,
   useAllUsers,
   useSetUserActiveStatus,
   useChangeUserRole,
@@ -41,6 +42,9 @@ function AdminPage() {
   };
   const { data: allUsers = [], isLoading: allUsersLoading, error: allUsersError } =
     useAllUsers(allUsersFilters, user ? { enabled: !!user && tab === "allUsers" } : { enabled: false });
+
+  const { data: allBooks = [], isLoading: allBooksLoading, error: allBooksError } =
+    useAllBooks(user ? { enabled: !!user && tab === "allBooks" } : { enabled: false });
 
   const moderateUser = useModerateUser();
   const moderateBook = useModerateBook();
@@ -93,7 +97,7 @@ function AdminPage() {
     });
   };
 
-  if ((tab !== "allUsers" && (usersLoading || booksLoading))) {
+  if ((tab !== "allUsers" && tab !== "allBooks" && (usersLoading || booksLoading))) {
     return (
       <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
         <div style={{ fontSize: "2rem" }}>Loading...</div>
@@ -158,6 +162,7 @@ function AdminPage() {
         {[
           { key: "users", label: "👥 Pending Users" },
           { key: "books", label: "📚 Pending Books" },
+          { key: "allBooks", label: "🗂️ All Books" },
           { key: "allUsers", label: "🗂️ All Users" },
         ].map((t) => (
           <button
@@ -302,6 +307,99 @@ function AdminPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* ── ALL BOOKS TAB ─────────────────────────────── */}
+      {tab === "allBooks" && (
+        <>
+          {allBooksLoading ? (
+            <div style={{ textAlign: "center", padding: "2rem" }}>Loading books…</div>
+          ) : allBooksError ? (
+            <div style={{ textAlign: "center", padding: "2rem", color: "#e74c3c" }}>
+              Error: {allBooksError.message}
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Owner</th>
+                    <th>Genre</th>
+                    <th>Status</th>
+                    <th>Approval</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allBooks.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: "center", padding: "1rem" }}>
+                        No books found
+                      </td>
+                    </tr>
+                  ) : (
+                    allBooks.map((b) => (
+                      <tr key={b.id}>
+                        <td style={{ fontFamily: "'Playfair Display',serif", fontWeight: 600 }}>
+                          {b.title}
+                        </td>
+                        <td>{b.ownerName}</td>
+                        <td>
+                          <span className="tag tag-genre">{b.genre}</span>
+                        </td>
+                        <td>
+                          <span className={`tag ${b.status === "Available" ? "status-available" : "status-borrowed"}`}>
+                            {b.status}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`tag ${
+                              b.approvalStatus === "Approved"
+                                ? "status-available"
+                                : b.approvalStatus === "Rejected"
+                                ? ""
+                                : "tag-warning"
+                            }`}
+                            style={
+                              b.approvalStatus === "Rejected"
+                                ? { background: "#fde8e8", color: "#e74c3c" }
+                                : {}
+                            }
+                          >
+                            {b.approvalStatus}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="td-actions">
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                background: b.approvalStatus === "Approved" ? "#e74c3c" : "#27ae60",
+                                color: "white",
+                              }}
+                              onClick={() => {
+                                if (b.approvalStatus === "Approved") {
+                                  rejectBook(b.id);
+                                } else {
+                                  approveBook(b.id);
+                                }
+                              }}
+                              disabled={moderateBook.isPending}
+                            >
+                              {b.approvalStatus === "Approved" ? "🚫 Deactivate" : "✓ Activate"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── ALL USERS TAB ─────────────────────────────────── */}

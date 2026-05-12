@@ -1,6 +1,8 @@
+import { useState } from "react";
 import BookCoverPlaceholder from "./BookCoverPlaceholder";
 
 function BookCard({ book, user, onLike, onOpen }) {
+  const [imageError, setImageError] = useState(false);
   const isBorrowed = book.status === "Borrowed";
 
   return (
@@ -13,11 +15,12 @@ function BookCard({ book, user, onLike, onOpen }) {
       }}
     >
       <div className="book-cover">
-        {book.coverImageUrl ? (
+        {book.coverImageUrl && !imageError ? (
           <img
             src={book.coverImageUrl}
             alt={book.title}
             className="book-cover-img"
+            onError={() => setImageError(true)}
           />
         ) : (
           <BookCoverPlaceholder title={book.title} />
@@ -55,20 +58,44 @@ function BookCard({ book, user, onLike, onOpen }) {
             EGP {book.borrowPrice}/day
           </span>
 
-          <div className="book-card-likes">
-            <span
-              style={{ cursor: "pointer" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (user && onLike) {
-                  onLike(book.id);
-                }
-              }}
-            >
-              ❤️
-            </span>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <div className="book-card-likes">
+              <span
+                style={{ 
+                  cursor: user ? "pointer" : "default",
+                  opacity: user ? 1 : 0.6,
+                  filter: book.userReaction === "Like" ? "none" : "grayscale(1)"
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (user && onLike) {
+                    onLike(book.id, true);
+                  }
+                }}
+              >
+                ❤️
+              </span>
+              {book.likesCount}
+            </div>
 
-            {book.likesCount}
+            <div className="book-card-likes">
+              <span
+                style={{ 
+                  cursor: user ? "pointer" : "default",
+                  opacity: user ? 1 : 0.6,
+                  filter: book.userReaction === "Dislike" ? "none" : "grayscale(1)"
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (user && onLike) {
+                    onLike(book.id, false);
+                  }
+                }}
+              >
+                👎
+              </span>
+              {book.dislikesCount}
+            </div>
           </div>
         </div>
 

@@ -67,10 +67,8 @@ export const booksApi = {
   },
 
   react: async (bookId, reactionData) => {
-    const mappedData = {
-      IsLike: reactionData.type === "like",
-    };
-    const response = await apiClient.post(`/books/${bookId}/reaction`, mappedData);
+    // reactionData = { isLike: boolean }
+    const response = await apiClient.post(`/books/${bookId}/reaction`, reactionData);
     return response.data;
   },
 };

@@ -18,7 +18,7 @@ function BrowsePage() {
   const [sortBy, setSortBy] = useState("title");
   const [maxPrice, setMaxPrice] = useState("");
   const [selected, setSelected] = useState(null);
-  const [likedBooks, setLikedBooks] = useState(new Set());
+  const [modalImageError, setModalImageError] = useState(false);
 
   // React Query hooks
   const { data: books = [], isLoading, error } = useBooks({ search, genre, language: lang === "All" ? undefined : lang });
@@ -74,21 +74,12 @@ function BrowsePage() {
     section?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleLike = (bookId) => {
-    const isLiked = likedBooks.has(bookId);
+  const handleReaction = (bookId, isLike) => {
     reactToBook.mutate(
-      { bookId, reactionData: { type: isLiked ? "unlike" : "like" } },
+      { bookId, reactionData: { isLike } },
       {
         onSuccess: () => {
-          setLikedBooks((prev) => {
-            const newSet = new Set(prev);
-            if (isLiked) {
-              newSet.delete(bookId);
-            } else {
-              newSet.add(bookId);
-            }
-            return newSet;
-          });
+          // No need for local state, React Query will invalidate and refetch
         },
       }
     );
@@ -222,7 +213,7 @@ function BrowsePage() {
                 book={book}
                 user={user}
                 onOpen={setSelected}
-                onLike={handleLike}
+                onLike={handleReaction}
               />
             ))}
           </div>
@@ -231,7 +222,10 @@ function BrowsePage() {
 
       {/* --- MODAL WITH COMMENTS --- */}
       {selected && currentBook && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
+        <div className="modal-overlay" onClick={() => {
+          setSelected(null);
+          setModalImageError(false);
+        }}>
           <div
             className="modal"
             style={{ maxWidth: 750, maxHeight: '90vh', overflowY: 'auto' }}
@@ -239,14 +233,22 @@ function BrowsePage() {
           >
             <div className="modal-header">
               <div className="modal-title">{currentBook.title}</div>
-              <button className="modal-close" onClick={() => setSelected(null)}>✕</button>
+              <button className="modal-close" onClick={() => {
+                setSelected(null);
+                setModalImageError(false);
+              }}>✕</button>
             </div>
 
             <div className="modal-body">
               <div className="book-detail-grid">
                 <div className="book-detail-cover">
-                  {currentBook.coverImageUrl ? (
-                    <img src={currentBook.coverImageUrl} alt={currentBook.title} style={{ width: "100%", borderRadius: 8 }} />
+                  {currentBook.coverImageUrl && !modalImageError ? (
+                    <img 
+                      src={currentBook.coverImageUrl} 
+                      alt={currentBook.title} 
+                      style={{ width: "100%", borderRadius: 8 }} 
+                      onError={() => setModalImageError(true)}
+                    />
                   ) : (
                     <BookCoverPlaceholder title={currentBook.title} large />
                   )}

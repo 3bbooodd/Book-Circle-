@@ -74,6 +74,12 @@ public sealed class AdminService(
         return books.Select(MapBook);
     }
 
+    public async Task<IEnumerable<BookResponseDto>> GetAllBooksAsync(CancellationToken cancellationToken = default)
+    {
+        var books = await bookRepository.GetAllBooksAsync(cancellationToken);
+        return books.Select(MapBook);
+    }
+
     public async Task ApproveOrRejectBookAsync(Guid bookId, bool approve, CancellationToken cancellationToken = default)
     {
         var book = await bookRepository.GetDetailedByIdAsync(bookId, cancellationToken)
@@ -223,7 +229,8 @@ public sealed class AdminService(
             OwnerName = book.Owner.FullName,
             ApprovalStatus = book.ApprovalStatus,
             LikesCount = book.Reactions.Count(x => x.IsLike),
-            DislikesCount = book.Reactions.Count(x => !x.IsLike)
+            DislikesCount = book.Reactions.Count(x => !x.IsLike),
+            UserReaction = null
         };
     }
 }

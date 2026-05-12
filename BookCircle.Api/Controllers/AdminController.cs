@@ -34,6 +34,13 @@ public sealed class AdminController(IAdminService adminService) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("books")]
+    public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetAllBooks(CancellationToken cancellationToken)
+    {
+        var result = await adminService.GetAllBooksAsync(cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPut("books/{bookId:guid}/approval")]
     public async Task<IActionResult> ModerateBook(Guid bookId, ApprovalDecisionDto request, CancellationToken cancellationToken)
     {

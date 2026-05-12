@@ -8,4 +8,5 @@ public interface IBookRepository : IGenericRepository<Book>
     Task<List<Book>> GetBrowseableBooksAsync(string? search, string? genre, string? language, CancellationToken cancellationToken = default);
     Task<List<Book>> GetOwnerBooksAsync(Guid ownerId, CancellationToken cancellationToken = default);
     Task<List<Book>> GetPendingApprovalBooksAsync(CancellationToken cancellationToken = default);
+    Task<List<Book>> GetAllBooksAsync(CancellationToken cancellationToken = default);
 }

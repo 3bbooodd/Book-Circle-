@@ -12,6 +12,7 @@ import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
 import Toast from "./components/Toast";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import { globalStyles, G } from "./styles/globalStyles";
 import { useToast } from "./hooks/useToast";
@@ -115,10 +116,38 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<BrowsePage />} />
           <Route path="/browse" element={<BrowsePage />} />
-          <Route path="/mybooks" element={<MyBooksPage />} />
-          <Route path="/reading" element={<ReadingListPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route
+            path="/mybooks"
+            element={
+              <ProtectedRoute roles={["BookOwner"]}>
+                <MyBooksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reading"
+            element={
+              <ProtectedRoute roles={["Reader"]}>
+                <ReadingListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute roles={["Reader", "BookOwner"]}>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute roles={["Admin"]}>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
 
         {/* Auth */}
