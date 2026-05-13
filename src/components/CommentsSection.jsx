@@ -16,6 +16,11 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
       return;
     }
 
+    if (user.role !== 'Reader') {
+      alert("Only Readers can leave comments.");
+      return;
+    }
+
     if (onAddComment) {
       onAddComment(bookId, text);
       setText("");
@@ -28,6 +33,11 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
 
     if (!user) {
       alert("You must be logged in to reply.");
+      return;
+    }
+
+    if (user.role !== 'Reader') {
+      alert("Only Readers can reply to comments.");
       return;
     }
 
@@ -45,7 +55,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
       </h4>
 
       {/* 🔥 INPUT (Readers only) */}
-      {user ? (
+      {user?.role === 'Reader' ? (
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
@@ -72,6 +82,17 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
             Post
           </button>
         </form>
+      ) : user ? (
+        <p
+          style={{
+            fontSize: "0.9rem",
+            color: "#e67e22",
+            marginBottom: "20px",
+            fontWeight: "500",
+          }}
+        >
+          📝 Only Readers can leave comments.
+        </p>
       ) : (
         <p
           style={{
@@ -120,7 +141,7 @@ function CommentsSection({ bookId, comments = [], user, onAddComment }) {
                   {c.createdAtUtc ? new Date(c.createdAtUtc).toLocaleDateString() : "Just now"}
                 </span>
 
-                {user && (
+                {user?.role === 'Reader' && (
                   <button
                     onClick={() =>
                       setActiveReplyId(

@@ -18,6 +18,7 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser, Id
     public DbSet<ReadingList> ReadingLists => Set<ReadingList>();
     public DbSet<ReadingListItem> ReadingListItems => Set<ReadingListItem>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

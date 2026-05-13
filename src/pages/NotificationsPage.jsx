@@ -1,88 +1,30 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useReaderBorrowRequests } from "../services/borrowService";
-import { useMyBooks } from "../services/bookService";
-import apiClient from "../services/apiClient";
+import { useEffect } from "react";
+import { useNotifications } from "../context/NotificationContext";
 
 function NotificationsPage() {
-  const { user } = useAuth();
-  const { data: requests = [], isLoading, error } = useReaderBorrowRequests(user ? { enabled: !!user } : { enabled: false });
-  const { data: myBooks = [] } = useMyBooks(user?.role === "BookOwner" ? { enabled: !!user } : { enabled: false });
-  const [commentNotifications, setCommentNotifications] = useState([]);
+  const { notifications, markAllRead } = useNotifications();
 
-  // Fetch comments for each book when myBooks changes
+  // Mark all as read when visiting the page
   useEffect(() => {
-    if (!myBooks || myBooks.length === 0) return;
+    if (notifications.length > 0 && notifications.some(n => !n.read)) {
+      markAllRead();
+    }
+  }, [markAllRead, notifications]);
 
-    const fetchCommentsForBooks = async () => {
-      const allComments = [];
-      
-      // Only fetch comments for approved books
-      const approvedBooks = myBooks.filter(book => book.approvalStatus === "Approved");
-      
-      for (const book of approvedBooks) {
-        try {
-          const response = await apiClient.get(`/books/${book.id}/comments`);
-          const comments = response.data;
-          // Only show comments from other users (not from the book owner)
-          const otherUserComments = comments.filter(c => c.userId !== user.id);
-          otherUserComments.forEach(comment => {
-            allComments.push({
-              id: `comment-${comment.id}`,
-              type: "comment",
-              text: `${comment.userName} commented on your book "${book.title}"`,
-              book: comment.content,
-            });
-          });
-        } catch (error) {
-          console.error(`Failed to fetch comments for book ${book.id}:`, error);
-        }
-      }
-      
-      setCommentNotifications(allComments);
-    };
+  // Helper to format the timestamp
+  const formatTime = (ts) => {
+    const date = new Date(ts);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    fetchCommentsForBooks();
-  }, [myBooks, user?.id]);
-
-  // Convert borrow requests to notification format (exclude returned requests)
-  const borrowRequestNotifications = requests
-    .filter((r) => r.status !== "Returned")
-    .map((r) => ({
-      id: "req-" + r.id,
-      type: "request",
-      text: `Your request for "${r.bookTitle}" is ${r.status}`,
-      book: r.bookTitle,
-    }));
-
-  // Convert book approval status to notifications
-  const bookApprovalNotifications = myBooks.map(book => ({
-    id: `book-status-${book.id}`,
-    type: "book-approval",
-    text: `Your book "${book.title}" is ${book.approvalStatus}`,
-    book: book.title,
-  }));
-
-  // Combine all notifications
-  const allNotifications = [...commentNotifications, ...borrowRequestNotifications, ...bookApprovalNotifications];
-
-  if (isLoading) {
-    return (
-      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
-        <div style={{ fontSize: "2rem" }}>Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
-        <div style={{ fontSize: "2rem", color: "#e74c3c" }}>
-          Error: {error.message}
-        </div>
-      </div>
-    );
-  }
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
 
   return (
     <div className="page">
@@ -95,7 +37,7 @@ function NotificationsPage() {
         </div>
       </div>
 
-      {allNotifications.length === 0 ? (
+      {notifications.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🔔</div>
           <h3>No notifications yet</h3>
@@ -103,14 +45,21 @@ function NotificationsPage() {
         </div>
       ) : (
         <div className="notifications-list">
-          {allNotifications.map((n) => (
-            <div key={n.id} className="notification-card">
+          {notifications.map((n) => (
+            <div 
+              key={n.id} 
+              className={`notification-card ${n.read ? "" : "unread"}`}
+              style={!n.read ? { borderLeft: "4px solid var(--gold)" } : {}}
+            >
+              <div className="notif-icon">{n.icon || "🔔"}</div>
               <div className="notif-content">
                 <div className="notif-title">{n.text}</div>
 
-                {n.book && (
-                  <div className="notif-sub">"{n.book}"</div>
+                {n.meta?.bookTitle && (
+                  <div className="notif-sub">"{n.meta.bookTitle}"</div>
                 )}
+                
+                <div className="notif-time">{formatTime(n.ts)}</div>
               </div>
             </div>
           ))}
@@ -120,4 +69,4 @@ function NotificationsPage() {
   );
 }
 
-export default NotificationsPage;
+export default NotificationsPage;

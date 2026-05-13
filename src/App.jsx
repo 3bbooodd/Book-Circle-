@@ -12,6 +12,7 @@ import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
 import Toast from "./components/Toast";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { NotificationProvider, useNotifications } from "./context/NotificationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import { globalStyles, G } from "./styles/globalStyles";
@@ -26,6 +27,37 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function NavLinks({ user, hasRole }) {
+  const { unreadCount } = useNotifications();
+
+  const navLinks = [
+    { id: "browse", label: " Browse", always: true },
+    { id: "mybooks", label: " My Books", roles: ["BookOwner"] },
+    { id: "reading", label: " Reading List", roles: ["Reader"] },
+    { id: "notifications", label: " Notifications", roles: ["Reader", "BookOwner"] },
+    { id: "admin", label: " Admin", roles: ["Admin"] },
+  ].filter((l) => l.always || (user && hasRole(l.roles)));
+
+  return (
+    <div className="navbar-links">
+      {navLinks.map((l) => (
+        <Link
+          key={l.id}
+          to={`/${l.id}`}
+          className="nav-btn"
+        >
+          {l.label}
+          {l.id === "notifications" && unreadCount > 0 && (
+            <span className="badge-pill" style={{ marginLeft: "0.4rem" }}>
+              {unreadCount}
+            </span>
+          )}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 function AppContent() {
   const { user, login, logout, hasRole } = useAuth();
@@ -46,18 +78,13 @@ function AppContent() {
   }, []);
 
   // Navigation links - RBAC based
-  const navLinks = [
-    { id: "browse", label: " Browse", always: true },
-    { id: "mybooks", label: " My Books", roles: ["BookOwner"] },
-    { id: "reading", label: " Reading List", roles: ["Reader"] },
-    { id: "notifications", label: " Notifications", roles: ["Reader", "BookOwner"] },
-    { id: "admin", label: " Admin", roles: ["Admin"] },
-  ].filter((l) => l.always || (user && hasRole(l.roles)));
+  // (Moved to NavLinks component to access NotificationContext)
 
   return (
-    <BrowserRouter>
-      <>
-        {/* Navbar */}
+    <NotificationProvider user={user} onToast={showToast}>
+      <BrowserRouter>
+        <>
+          {/* Navbar */}
         <nav className="navbar">
            <div className="navbar-brand">
             <img
@@ -67,17 +94,7 @@ function AppContent() {
             /><span> BookAholic</span>
           </div>
 
-          <div className="navbar-links">
-            {navLinks.map((l) => (
-              <Link
-                key={l.id}
-                to={`/${l.id}`}
-                className="nav-btn"
-              >
-                {l.label}
-              </Link>
-            ))}
-          </div>
+          <NavLinks user={user} hasRole={hasRole} />
 
           <div className="navbar-actions">
             {user ? (
@@ -170,6 +187,7 @@ function AppContent() {
         <Footer />
       </>
     </BrowserRouter>
+    </NotificationProvider>
   );
 }
 

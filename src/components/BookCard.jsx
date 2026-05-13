@@ -62,13 +62,21 @@ function BookCard({ book, user, onLike, onOpen }) {
             <div className="book-card-likes">
               <span
                 style={{ 
-                  cursor: user ? "pointer" : "default",
-                  opacity: user ? 1 : 0.6,
+                  cursor: (user && user.role === 'Reader') ? "pointer" : user ? "not-allowed" : "default",
+                  opacity: (user && user.role === 'Reader') ? 1 : 0.6,
                   filter: book.userReaction === "Like" ? "none" : "grayscale(1)"
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (user && onLike) {
+                  if (!user) {
+                    alert("Please log in to like books.");
+                    return;
+                  }
+                  if (user.role !== 'Reader') {
+                    alert("Only Readers can react to books.");
+                    return;
+                  }
+                  if (onLike) {
                     onLike(book.id, true);
                   }
                 }}
@@ -81,13 +89,21 @@ function BookCard({ book, user, onLike, onOpen }) {
             <div className="book-card-likes">
               <span
                 style={{ 
-                  cursor: user ? "pointer" : "default",
-                  opacity: user ? 1 : 0.6,
+                  cursor: (user && user.role === 'Reader') ? "pointer" : user ? "not-allowed" : "default",
+                  opacity: (user && user.role === 'Reader') ? 1 : 0.6,
                   filter: book.userReaction === "Dislike" ? "none" : "grayscale(1)"
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (user && onLike) {
+                  if (!user) {
+                    alert("Please log in to dislike books.");
+                    return;
+                  }
+                  if (user.role !== 'Reader') {
+                    alert("Only Readers can react to books.");
+                    return;
+                  }
+                  if (onLike) {
                     onLike(book.id, false);
                   }
                 }}

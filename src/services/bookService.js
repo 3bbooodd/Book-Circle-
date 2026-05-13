@@ -2,7 +2,7 @@
  * Book Service - Backend API integration with React Query hooks
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import apiClient from './apiClient';
 
 // API Functions
@@ -78,6 +78,7 @@ export const useBooks = (params = {}) => {
   return useQuery({
     queryKey: ['books', params],
     queryFn: () => booksApi.browse(params),
+    placeholderData: keepPreviousData,
   });
 };
 

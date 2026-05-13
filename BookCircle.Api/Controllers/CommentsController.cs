@@ -42,7 +42,7 @@ public sealed class CommentsController(ICommentService commentService) : Control
 
     [HttpPost]
 
-    [Authorize(Roles = $"{ApplicationRoles.Admin},{ApplicationRoles.BookOwner},{ApplicationRoles.Reader}")]
+    [Authorize(Roles = ApplicationRoles.Reader)]
 
     public async Task<ActionResult<CommentResponseDto>> Create(Guid bookId, [FromBody] CreateCommentRequestDto request, CancellationToken cancellationToken)
 

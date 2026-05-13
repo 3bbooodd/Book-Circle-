@@ -25,6 +25,9 @@ function BrowsePage() {
 
   // React Query hooks
   const { data: books = [], isLoading, error } = useBooks({ search, genre, language: lang === "All" ? undefined : lang });
+  // Also fetch all books once (cached) to derive the full list of genres/languages for the filters
+  const { data: allBooks = [] } = useBooks({}); 
+
   const reactToBook = useReactToBook();
   const createBorrowRequest = useCreateBorrowRequest();
   const { data: comments = [] } = useBookComments(selected?.id);
@@ -38,8 +41,8 @@ function BrowsePage() {
 
   // Find current book in the books array
   const currentBook = books.find((b) => b.id === selected?.id);
-  const genres = ["All", ...new Set(books.map((b) => b.genre))];
-  const langs = ["All", ...new Set(books.map((b) => b.language))];
+  const genres = ["All", ...new Set(allBooks.map((b) => b.genre))];
+  const langs = ["All", ...new Set(allBooks.map((b) => b.language))];
 
   const filtered = books.filter(b => {
       if (user?.role === 'Admin') return true;
@@ -115,7 +118,10 @@ function BrowsePage() {
     );
   };
 
-  if (isLoading) {
+  // Only show full-page loading if it's the absolute first load and we have no data
+  const isInitialLoading = isLoading && books.length === 0;
+
+  if (isInitialLoading) {
     return (
       <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
         <div style={{ fontSize: "2rem" }}>Loading books...</div>
@@ -123,7 +129,7 @@ function BrowsePage() {
     );
   }
 
-  if (error) {
+  if (error && books.length === 0) {
     return (
       <div className="page" style={{ textAlign: "center", padding: "4rem" }}>
         <div style={{ fontSize: "2rem", color: "#e74c3c" }}>
@@ -203,6 +209,7 @@ function BrowsePage() {
         </div>
 
         {/* --- BOOKS GRID --- */}
+        <div style={{ minHeight: '400px' }}>
         {filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📚</div>
@@ -221,6 +228,7 @@ function BrowsePage() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* --- MODAL WITH COMMENTS --- */}

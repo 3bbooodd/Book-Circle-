@@ -66,7 +66,7 @@ public sealed class BooksController(IBookService bookService) : ControllerBase
     }
 
     [HttpPost("{bookId:guid}/reaction")]
-    [Authorize(Roles = $"{ApplicationRoles.Reader},{ApplicationRoles.BookOwner}")]
+    [Authorize(Roles = ApplicationRoles.Reader)]
     public async Task<ActionResult<BookResponseDto>> React(Guid bookId, BookReactionRequestDto request, CancellationToken cancellationToken)
     {
         var result = await bookService.ReactAsync(User.GetUserId(), bookId, request, cancellationToken);
