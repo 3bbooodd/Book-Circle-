@@ -16,5 +16,6 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     public ICollection<Comment> Comments { get; set; } = new List<Comment>();
     public ICollection<BookReaction> BookReactions { get; set; } = new List<BookReaction>();
     public ICollection<ReadingList> ReadingLists { get; set; } = new List<ReadingList>();
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }

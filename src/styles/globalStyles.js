@@ -399,7 +399,7 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
     width: 100%; padding: 0.55rem 0.9rem;
     border: 1.5px solid var(--cream-dark); border-radius: 8px;
     font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink);
-    background: white; transition: border-color 0.2s;
+    background: var(--cream-dark); transition: border-color 0.2s;
   }
   .form-input:focus { outline: none; border-color: var(--burgundy); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -407,7 +407,7 @@ ${/* خلي بقية الـ styles زي ما انت باعتها بالظبط */
     width: 100%; padding: 0.55rem 0.9rem;
     border: 1.5px solid var(--cream-dark); border-radius: 8px;
     font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink);
-    background: white; cursor: pointer;
+    background: var(--cream-dark); cursor: pointer;
   }
   .form-select:focus { outline: none; border-color: var(--burgundy); }
 

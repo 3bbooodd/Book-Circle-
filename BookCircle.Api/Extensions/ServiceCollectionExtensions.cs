@@ -105,6 +105,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBorrowRequestRepository, BorrowRequestRepository>();
         services.AddScoped<ICommentRepository, CommentRepository>();
         services.AddScoped<IReadingListRepository, ReadingListRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         services.AddScoped<ITokenService, TokenService>();

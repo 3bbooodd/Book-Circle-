@@ -1,23 +1,59 @@
+using System.Text.Json;
 using BookCircle.Api.Hubs;
+using BookCircle.Api.Models;
+using BookCircle.Api.Repositories.Interfaces;
 using BookCircle.Api.Services.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 
 namespace BookCircle.Api.Services;
 
-public sealed class NotificationService(IHubContext<NotificationHub> hubContext) : INotificationService
+public sealed class NotificationService(
+    IHubContext<NotificationHub> hubContext,
+    INotificationRepository notificationRepository) : INotificationService
 {
-    public Task NotifyBorrowRequestSentAsync(Guid ownerId, object payload)
+    public async Task NotifyBorrowRequestSentAsync(Guid ownerId, object payload)
     {
-        return hubContext.Clients.User(ownerId.ToString()).SendAsync("BorrowRequestSent", payload);
+        await SaveAndSendAsync(ownerId, "borrow-request", "New Borrow Request", "Someone wants to borrow your book!", payload, "BorrowRequestSent");
     }
 
-    public Task NotifyBorrowDecisionAsync(Guid readerId, object payload)
+    public async Task NotifyBorrowDecisionAsync(Guid readerId, object payload)
     {
-        return hubContext.Clients.User(readerId.ToString()).SendAsync("BorrowRequestUpdated", payload);
+        await SaveAndSendAsync(readerId, "borrow-update", "Borrow Request Update", "The owner has responded to your request.", payload, "BorrowRequestUpdated");
     }
 
-    public Task NotifyCommentCreatedAsync(Guid recipientUserId, object payload)
+    public async Task NotifyCommentCreatedAsync(Guid recipientUserId, object payload)
     {
-        return hubContext.Clients.User(recipientUserId.ToString()).SendAsync("CommentCreated", payload);
+        await SaveAndSendAsync(recipientUserId, "comment", "New Comment", "Someone commented on your book.", payload, "CommentCreated");
+    }
+
+    public async Task<IEnumerable<Notification>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await notificationRepository.GetForUserAsync(userId, cancellationToken);
+    }
+
+    public async Task MarkAllAsReadAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await notificationRepository.MarkAllAsReadAsync(userId, cancellationToken);
+    }
+
+    private async Task SaveAndSendAsync(Guid userId, string type, string title, string message, object payload, string hubMethod)
+    {
+        var jsonPayload = JsonSerializer.Serialize(payload);
+
+        var notification = new Notification
+        {
+            UserId = userId,
+            Type = type,
+            Title = title,
+            Message = message,
+            Payload = jsonPayload,
+            IsRead = false
+        };
+
+        await notificationRepository.AddAsync(notification);
+        await notificationRepository.SaveChangesAsync();
+
+        // Push real-time
+        await hubContext.Clients.User(userId.ToString()).SendAsync(hubMethod, payload);
     }
 }

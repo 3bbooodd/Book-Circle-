@@ -90,6 +90,20 @@ public sealed class ReadingListService(
         await readingListItemRepository.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DeleteListAsync(Guid userId, Guid readingListId, CancellationToken cancellationToken = default)
+    {
+        var list = await readingListRepository.GetByIdAsync(readingListId, cancellationToken)
+            ?? throw new NotFoundException("Reading list was not found.");
+
+        if (list.UserId != userId)
+        {
+            throw new ForbiddenException("You can only delete your own reading lists.");
+        }
+
+        readingListRepository.Remove(list);
+        await readingListRepository.SaveChangesAsync(cancellationToken);
+    }
+
     private static ReadingListResponseDto MapReadingList(ReadingList list)
     {
         return new ReadingListResponseDto

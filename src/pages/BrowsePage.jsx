@@ -19,6 +19,9 @@ function BrowsePage() {
   const [maxPrice, setMaxPrice] = useState("");
   const [selected, setSelected] = useState(null);
   const [modalImageError, setModalImageError] = useState(false);
+  // Reading list picker state (per book modal)
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [pickerListId, setPickerListId] = useState("");
 
   // React Query hooks
   const { data: books = [], isLoading, error } = useBooks({ search, genre, language: lang === "All" ? undefined : lang });
@@ -29,18 +32,16 @@ function BrowsePage() {
   const { data: readingLists = [] } = useMyReadingLists(user?.role === "Reader" ? { enabled: !!user } : { enabled: false });
   const addBookToList = useAddBookToReadingList();
 
-  // Get current user's reading list
-  const myReadingList = readingLists[0]?.items || [];
+  // Compute per-book membership across ALL reading lists
+  const inList = (id) => readingLists.some((l) => l.items?.some((b) => b.bookId === id));
+  const whichLists = (id) => readingLists.filter((l) => l.items?.some((b) => b.bookId === id));
 
   // Find current book in the books array
   const currentBook = books.find((b) => b.id === selected?.id);
-
-  // Extract genres and languages
   const genres = ["All", ...new Set(books.map((b) => b.genre))];
   const langs = ["All", ...new Set(books.map((b) => b.language))];
 
-  const filtered = books
-    .filter(b => {
+  const filtered = books.filter(b => {
       if (user?.role === 'Admin') return true;
       if (user?.role === 'BookOwner' && b.ownerId === user?.id) return true;
       return true; // Show all books regardless of status
@@ -66,8 +67,6 @@ function BrowsePage() {
       if (sortBy === "likes") return (b.likesCount || 0) - (a.likesCount || 0);
       return a.title.localeCompare(b.title);
     });
-
-  const inList = (id) => myReadingList.some((b) => b.bookId === id);
 
   const scrollToBooks = () => {
     const section = document.getElementById("books-section");
@@ -103,13 +102,17 @@ function BrowsePage() {
     });
   };
 
-  const handleAddToList = (book) => {
-    const readingListId = readingLists[0]?.id;
-    if (!readingListId) return;
-    addBookToList.mutate({
-      readingListId,
-      bookData: { bookId: book.id },
-    });
+  const openListPicker = () => {
+    setShowListPicker(true);
+    setPickerListId(readingLists[0]?.id ?? "");
+  };
+
+  const handleAddToList = () => {
+    if (!pickerListId) return;
+    addBookToList.mutate(
+      { readingListId: pickerListId, bookId: selected.id },
+      { onSuccess: () => setShowListPicker(false) }
+    );
   };
 
   if (isLoading) {
@@ -261,7 +264,7 @@ function BrowsePage() {
                   <p><strong>Price:</strong> EGP {currentBook.borrowPrice}/day</p>
                   <p><strong>Genre:</strong> {currentBook.genre} | <strong>Lang:</strong> {currentBook.language}</p>
 
-                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap", alignItems: "flex-start" }}>
                     {user?.role === "Reader" && currentBook.status === "Available" && currentBook.approvalStatus === "Approved" && (
                       <button
                         className="btn btn-primary btn-sm"
@@ -270,10 +273,68 @@ function BrowsePage() {
                         📬 Request Borrow
                       </button>
                     )}
-                    {user?.role !== "Admin" && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleAddToList(currentBook)} disabled={inList(currentBook.id)}>
-                        {inList(currentBook.id) ? "✓ In List" : "📌 Save"}
-                      </button>
+
+                    {/* Reading list picker — only for Reader role */}
+                    {user?.role === "Reader" && (
+                      <div style={{ position: "relative" }}>
+                        {!showListPicker ? (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={openListPicker}
+                            disabled={inList(currentBook.id)}
+                          >
+                            {inList(currentBook.id) ? "✓ Saved" : "📌 Save to List"}
+                          </button>
+                        ) : (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "0.4rem",
+                              alignItems: "center",
+                              background: "var(--cream-dark)",
+                              border: "1px solid var(--muted)",
+                              borderRadius: 8,
+                              padding: "0.35rem 0.5rem",
+                            }}
+                          >
+                            {readingLists.length === 0 ? (
+                              <span style={{ fontSize: "0.82rem", opacity: 0.7 }}>
+                                No lists yet — go to Reading List page to create one
+                              </span>
+                            ) : (
+                              <>
+                                <select
+                                  className="filter-select"
+                                  style={{ padding: "0.25rem 0.5rem", fontSize: "0.82rem" }}
+                                  value={pickerListId}
+                                  onChange={(e) => setPickerListId(e.target.value)}
+                                >
+                                  {readingLists.map((l) => (
+                                    <option key={l.id} value={l.id}>
+                                      {l.name} ({l.items?.length ?? 0} books)
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  style={{ fontSize: "0.8rem" }}
+                                  onClick={handleAddToList}
+                                  disabled={addBookToList.isPending}
+                                >
+                                  {addBookToList.isPending ? "…" : "Add"}
+                                </button>
+                              </>
+                            )}
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ fontSize: "0.8rem" }}
+                              onClick={() => setShowListPicker(false)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

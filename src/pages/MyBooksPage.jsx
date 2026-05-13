@@ -3,13 +3,16 @@ import { G } from "../styles/globalStyles";
 import { useAuth } from "../context/AuthContext";
 import { useMyBooks, useCreateBook, useUpdateBook, useDeleteBook } from "../services/bookService";
 import { useOwnerBorrowRequests, useProcessBorrowRequest, useReturnBook } from "../services/borrowService";
+import { useToast } from "../hooks/useToast";
+import Toast from "../components/Toast";
 
-function MyBooksPage(){
+function MyBooksPage() {
   const { user } = useAuth();
+  const { toasts, showToast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editBook, setEditBook] = useState(null);
   const [previewError, setPreviewError] = useState(false);
-  
+
   // React Query hooks
   const { data: myBooks = [], isLoading, error } = useMyBooks(user ? { enabled: !!user } : { enabled: false });
   const { data: requests = [] } = useOwnerBorrowRequests(user ? { enabled: !!user } : { enabled: false });
@@ -50,7 +53,7 @@ function MyBooksPage(){
 
   const openEdit = (b) => {
     setEditBook(b);
-    setForm({ 
+    setForm({
       title: b.title,
       genre: b.genre,
       isbn: b.isbn,
@@ -67,8 +70,27 @@ function MyBooksPage(){
 
   const save = () => {
     if (!form.title.trim()) {
-      alert("Title is required!");
+      showToast("Title is required!", "error");
       return;
+    }
+
+    if (form.publicationDate) {
+      const pubDate = new Date(form.publicationDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (pubDate > today) {
+        showToast("Publication Date cannot be in the future!", "error");
+        return;
+      }
+
+      if (form.availableFrom) {
+        const availDate = new Date(form.availableFrom);
+        if (pubDate > availDate) {
+          showToast("Publication Date cannot be after the Available From date!", "error");
+          return;
+        }
+      }
     }
 
     const bookData = {
@@ -81,16 +103,22 @@ function MyBooksPage(){
         onSuccess: () => {
           setShowForm(false);
           setEditBook(null);
-          alert("Book updated successfully!");
+          showToast("Book updated successfully!", "success");
         },
+        onError: (err) => {
+          showToast(err.response?.data?.message || "Failed to update book.", "error");
+        }
       });
     } else {
       createBook.mutate(bookData, {
         onSuccess: () => {
           setShowForm(false);
           setEditBook(null);
-          alert("Book submitted for review!");
+          showToast("Book submitted for review!", "success");
         },
+        onError: (err) => {
+          showToast(err.response?.data?.message || "Failed to add book.", "error");
+        }
       });
     }
   };
@@ -99,14 +127,14 @@ function MyBooksPage(){
     const b = myBooks.find((b) => b.id === id);
 
     if (b?.status === "Borrowed") {
-      alert("Cannot delete a borrowed book!");
+      showToast("Cannot delete a borrowed book!", "error");
       return;
     }
 
     if (window.confirm("Are you sure you want to remove this book?")) {
       deleteBook.mutate(id, {
         onSuccess: () => {
-          alert("Book removed.");
+          showToast("Book removed.", "success");
         },
       });
     }
@@ -118,7 +146,7 @@ function MyBooksPage(){
       decisionData: { approve: true },
     }, {
       onSuccess: () => {
-        alert("Book borrowed successfully!");
+        showToast("Book borrowed successfully!", "success");
       },
     });
   };
@@ -129,7 +157,7 @@ function MyBooksPage(){
       decisionData: { approve: false },
     }, {
       onSuccess: () => {
-        alert("Request rejected.");
+        showToast("Request rejected.", "success");
       },
     });
   };
@@ -137,7 +165,7 @@ function MyBooksPage(){
   const returnRequest = (req) => {
     returnBook.mutate(req.id, {
       onSuccess: () => {
-        alert("Book returned successfully!");
+        showToast("Book returned successfully!", "success");
       },
     });
   };
@@ -212,13 +240,12 @@ function MyBooksPage(){
 
                   <td>
                     <span
-                      className={`tag ${
-                        b.status === "Available"
+                      className={`tag ${b.status === "Available"
                           ? "status-available"
                           : b.status === "Borrowed"
-                          ? "status-borrowed"
-                          : "tag-warning"
-                      }`}
+                            ? "status-borrowed"
+                            : "tag-warning"
+                        }`}
                     >
                       {b.status}
                     </span>
@@ -280,7 +307,7 @@ function MyBooksPage(){
                       <td>{r.status}</td>
                       <td>
                         {r.status === "Pending" && (
-                          <div style={{gap: "5px" }}>
+                          <div style={{ gap: "5px" }}>
                             <button className="btn btn-sm btn-primary" onClick={() => acceptRequest(r)}>
                               ✓ Accept
                             </button>
@@ -290,8 +317,8 @@ function MyBooksPage(){
                           </div>
                         )}
                         {r.status === "Accepted" && (
-                          <button 
-                            className="btn btn-sm" 
+                          <button
+                            className="btn btn-sm"
                             style={{ background: "#27ae60", color: "white" }}
                             onClick={() => returnRequest(r)}
                           >
@@ -308,6 +335,9 @@ function MyBooksPage(){
         </div>
       )}
 
+      {/* Toast Notifications */}
+      <Toast toasts={toasts} />
+
       {/* MODAL */}
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
@@ -322,17 +352,19 @@ function MyBooksPage(){
             <div className="modal-body">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Available From</label>
+                  <label className="form-label">Available From</label>
                   <input
                     type="date"
+                    className="form-input"
                     value={form.availableFrom}
                     onChange={(e) => setForm({ ...form, availableFrom: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Available To</label>
+                  <label className="form-label">Available To</label>
                   <input
                     type="date"
+                    className="form-input"
                     value={form.availableTo}
                     onChange={(e) => setForm({ ...form, availableTo: e.target.value })}
                   />
@@ -341,15 +373,17 @@ function MyBooksPage(){
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Title</label>
+                  <label className="form-label">Title</label>
                   <input
+                    className="form-input"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Genre</label>
+                  <label className="form-label">Genre</label>
                   <input
+                    className="form-input"
                     value={form.genre}
                     onChange={(e) => setForm({ ...form, genre: e.target.value })}
                   />
@@ -358,15 +392,17 @@ function MyBooksPage(){
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>ISBN</label>
+                  <label className="form-label">ISBN</label>
                   <input
+                    className="form-input"
                     value={form.isbn}
                     onChange={(e) => setForm({ ...form, isbn: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Language</label>
+                  <label className="form-label">Language</label>
                   <select
+                    className="form-select"
                     value={form.language}
                     onChange={(e) => setForm({ ...form, language: e.target.value })}
                   >
@@ -381,17 +417,19 @@ function MyBooksPage(){
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Publication Date</label>
+                  <label className="form-label">Publication Date</label>
                   <input
                     type="date"
+                    className="form-input"
                     value={form.publicationDate}
                     onChange={(e) => setForm({ ...form, publicationDate: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Borrow Price (EGP/day)</label>
+                  <label className="form-label">Borrow Price (EGP/day)</label>
                   <input
                     type="number"
+                    className="form-input"
                     value={form.borrowPrice}
                     onChange={(e) => setForm({ ...form, borrowPrice: e.target.value })}
                   />
@@ -399,9 +437,10 @@ function MyBooksPage(){
               </div>
 
               <div className="form-group">
-                <label>Book Image URL</label>
+                <label className="form-label">Book Image URL</label>
                 <input
                   type="text"
+                  className="form-input"
                   placeholder="https://example.com/book-cover.jpg"
                   value={form.coverImageUrl}
                   onChange={(e) => {

@@ -8,4 +8,5 @@ public interface IReadingListService
     Task<ReadingListResponseDto> CreateAsync(Guid userId, CreateReadingListRequestDto request, CancellationToken cancellationToken = default);
     Task<ReadingListResponseDto> AddBookAsync(Guid userId, Guid readingListId, AddBookToReadingListRequestDto request, CancellationToken cancellationToken = default);
     Task RemoveBookAsync(Guid userId, Guid readingListId, Guid bookId, CancellationToken cancellationToken = default);
+    Task DeleteListAsync(Guid userId, Guid readingListId, CancellationToken cancellationToken = default);
 }

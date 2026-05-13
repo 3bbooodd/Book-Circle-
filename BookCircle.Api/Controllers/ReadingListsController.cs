@@ -39,4 +39,11 @@ public sealed class ReadingListsController(IReadingListService readingListServic
         await readingListService.RemoveBookAsync(User.GetUserId(), readingListId, bookId, cancellationToken);
         return NoContent();
     }
+
+    [HttpDelete("{readingListId:guid}")]
+    public async Task<IActionResult> DeleteList(Guid readingListId, CancellationToken cancellationToken)
+    {
+        await readingListService.DeleteListAsync(User.GetUserId(), readingListId, cancellationToken);
+        return NoContent();
+    }
 }
