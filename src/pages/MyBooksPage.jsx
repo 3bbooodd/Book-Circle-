@@ -218,6 +218,7 @@ function MyBooksPage() {
                 <th>Language</th>
                 <th>Price/day</th>
                 <th>Status</th>
+                <th>Approval</th>
                 <th>Likes</th>
                 <th>Actions</th>
               </tr>
@@ -248,6 +249,19 @@ function MyBooksPage() {
                         }`}
                     >
                       {b.status}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span
+                      className={`tag ${b.approvalStatus === "Approved"
+                          ? "status-available"
+                          : b.approvalStatus === "Pending"
+                            ? "status-pending"
+                            : "tag-danger"
+                        }`}
+                    >
+                      {b.approvalStatus}
                     </span>
                   </td>
 

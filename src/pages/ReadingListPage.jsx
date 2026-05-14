@@ -7,6 +7,8 @@ import {
   useRemoveBookFromReadingList,
   useDeleteReadingList,
 } from "../services/readingListService";
+import { useReaderBorrowRequests } from "../services/borrowService";
+
 
 // ─── Status tag colours ───────────────────────────────────────────────────────
 const statusClass = (s) => (s === "Available" ? "status-available" : "status-borrowed");
@@ -20,6 +22,12 @@ function ReadingListPage() {
   const createList   = useCreateReadingList();
   const removeBook   = useRemoveBookFromReadingList();
   const deleteList   = useDeleteReadingList();
+  const { data: borrowRequests = [] } = useReaderBorrowRequests(
+    user ? { enabled: true } : { enabled: false }
+  );
+
+  const [activeTab, setActiveTab] = useState("lists"); // "lists" or "requests"
+
 
   // "Create new list" inline form
   const [showCreate, setShowCreate] = useState(false);
@@ -85,9 +93,48 @@ function ReadingListPage() {
 
         <button
           className="btn btn-gold btn-sm"
-          onClick={() => setShowCreate((v) => !v)}
+          onClick={() => {
+            if (activeTab === "requests") {
+              setActiveTab("lists");
+            }
+            setShowCreate((v) => !v);
+          }}
         >
           {showCreate ? "✕ Cancel" : "+ New List"}
+        </button>
+      </div>
+
+      {/* ── Tabs ── */}
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--cream-dark)" }}>
+        <button 
+          onClick={() => { setActiveTab("lists"); setShowCreate(false); }}
+          style={{ 
+            padding: "0.75rem 1rem", 
+            border: "none", 
+            background: "none", 
+            cursor: "pointer",
+            fontWeight: 600,
+            color: activeTab === "lists" ? "var(--burgundy)" : "var(--muted)",
+            borderBottom: activeTab === "lists" ? "3px solid var(--burgundy)" : "3px solid transparent",
+            transition: "all 0.2s"
+          }}
+        >
+          📚 My Reading Lists
+        </button>
+        <button 
+          onClick={() => { setActiveTab("requests"); setShowCreate(false); }}
+          style={{ 
+            padding: "0.75rem 1rem", 
+            border: "none", 
+            background: "none", 
+            cursor: "pointer",
+            fontWeight: 600,
+            color: activeTab === "requests" ? "var(--burgundy)" : "var(--muted)",
+            borderBottom: activeTab === "requests" ? "3px solid var(--burgundy)" : "3px solid transparent",
+            transition: "all 0.2s"
+          }}
+        >
+          📬 My Borrow Requests
         </button>
       </div>
 
@@ -125,22 +172,24 @@ function ReadingListPage() {
         </div>
       )}
 
-      {/* ── Empty state ── */}
-      {readingLists.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">📚</div>
-          <h3>No reading lists yet</h3>
-          <p>Create your first list and start saving books to it.</p>
-          <button
-            className="btn btn-gold"
-            style={{ marginTop: "1rem" }}
-            onClick={() => setShowCreate(true)}
-          >
-            + Create a List
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      {/* ── LISTS TAB ── */}
+      {activeTab === "lists" && (
+        <>
+          {readingLists.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📚</div>
+              <h3>No reading lists yet</h3>
+              <p>Create your first list and start saving books to it.</p>
+              <button
+                className="btn btn-gold"
+                style={{ marginTop: "1rem" }}
+                onClick={() => setShowCreate(true)}
+              >
+                + Create a List
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {readingLists.map((list) => {
             const isOpen = !collapsed[list.id];
             const books  = list.items ?? [];
@@ -266,6 +315,55 @@ function ReadingListPage() {
             </div>
           );
           })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── REQUESTS TAB ── */}
+      {activeTab === "requests" && (
+        <div className="table-wrap">
+          {borrowRequests.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📬</div>
+              <h3>No borrow requests found</h3>
+              <p>When you request to borrow a book from someone, it will appear here.</p>
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Book</th>
+                  <th>Requested From</th>
+                  <th>Requested To</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {borrowRequests.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 600 }}>{r.bookTitle}</td>
+                    <td>{new Date(r.requestedFrom).toLocaleDateString()}</td>
+                    <td>{new Date(r.requestedTo).toLocaleDateString()}</td>
+                    <td>
+                      <span className={`tag ${
+                        r.status === "Pending" ? "status-pending" :
+                        r.status === "Accepted" ? "status-available" :
+                        r.status === "Rejected" ? "tag-danger" :
+                        "tag-muted"
+                      }`}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: "0.85rem", opacity: 0.7 }}>
+                      {new Date(r.createdAtUtc).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

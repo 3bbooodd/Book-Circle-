@@ -68,7 +68,17 @@ function AuthModal({ onClose, onLogin }) {
         onClose();
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Authentication failed ❌");
+      const data = err.response?.data;
+      
+      if (data?.errors) {
+        // Handle ASP.NET Core Validation Errors (ModelState)
+        const allErrors = Object.values(data.errors).flat();
+        setError(allErrors.join('\n'));
+      } else if (data?.message) {
+        setError(data.message);
+      } else {
+        setError(err.message || "Authentication failed ❌");
+      }
     } finally {
       setLoading(false);
     }
@@ -190,13 +200,19 @@ function AuthModal({ onClose, onLogin }) {
               style={{
                 fontSize: "0.85rem",
                 color: "#e74c3c",
-                padding: "0.5rem",
+                padding: "0.75rem",
                 backgroundColor: "#fde8e8",
-                borderRadius: "4px",
-                marginTop: "0.5rem",
+                borderRadius: "8px",
+                marginTop: "1rem",
+                whiteSpace: "pre-line", // This allows \n to work
+                border: "1px solid #f8b4b4",
               }}
             >
-              {error}
+              {error.split('\n').map((line, i) => (
+                <div key={i} style={{ marginBottom: i < error.split('\n').length - 1 ? '4px' : 0 }}>
+                  {error.includes('\n') ? `• ${line}` : line}
+                </div>
+              ))}
             </div>
           )}
         </div>
